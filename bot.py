@@ -49,7 +49,6 @@ async def on_ready():
 async def main():
     async with bot:
         await load_extensions()
-        await bot.tree.sync()
         await bot.start(TOKEN)
 
 if __name__ == "__main__":
