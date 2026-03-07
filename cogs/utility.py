@@ -8,6 +8,7 @@ class Utility(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="핑", description="디모의 응답 속도를 확인합니다.")
+    @app_commands.guild_only()
     async def ping(self, interaction: discord.Interaction):
         latency = round(self.bot.latency * 1000)
 

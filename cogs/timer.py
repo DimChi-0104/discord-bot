@@ -121,6 +121,7 @@ class Timer(commands.Cog):
         )
 
     @app_commands.command(name="타이머취소", description="생성된 타이머를 취소합니다.")
+    @app_commands.guild_only()
     @app_commands.checks.has_permissions(administrator=True)
     async def timer_cancel(
         self,
