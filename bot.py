@@ -42,12 +42,9 @@ async def load_extensions():
 
 @bot.event
 async def on_ready():
-    guild = discord.Object(id=1479777711013761107)
+    synced = await bot.tree.sync()
 
-    bot.tree.copy_global_to(guild=guild)
-    synced = await bot.tree.sync(guild=guild)
-
-    print(f"[SYNC] 테스트 서버 동기화 완료 ({len(synced)}개)")
+    print(f"[SYNC] 전역 명령어 동기화 ({len(synced)}개)")
     print(f"[READY] {bot.user}")
 
 async def main():
