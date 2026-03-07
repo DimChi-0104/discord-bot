@@ -36,15 +36,16 @@ async def load_extensions():
 
             try:
                 await bot.load_extension(ext)
-                print(f"로드 완료: {ext}")
+                print(f"[COG] {file[:-3]} 로드")
             except Exception as e:
-                print(f"로드 실패: {ext} -> {e}")
+                print(f"[ERROR] {file[:-3]} -> {e}")
 
 @bot.event
 async def on_ready():
-    print("──────────────")
-    print(f"디모 로그인 완료: {bot.user}")
-    print("──────────────")
+    guild = discord.Object(id=1479777711013761107)
+    synced = await bot.tree.sync(guild=guild)
+    print(f"[SYNC] 테스트 서버 동기화 완료 ({len(synced)}개)")
+    print(f"[READY] {bot.user}")
 
 async def main():
     async with bot:
