@@ -1,3 +1,52 @@
 {
-    "users": {}
+    "users": {
+        "662509817234980895": {
+            "money": 0,
+            "last_attendance": "2026-03-07",
+            "streak": 1,
+            "total_attendance": 1,
+            "win": 2,
+            "lose": 1
+        },
+        "488115689744498720": {
+            "money": 163,
+            "last_attendance": "2026-03-07",
+            "streak": 1,
+            "total_attendance": 1,
+            "win": 0,
+            "lose": 0
+        },
+        "1022479187623301140": {
+            "money": 500,
+            "last_attendance": "2026-03-07",
+            "streak": 1,
+            "total_attendance": 1,
+            "win": 0,
+            "lose": 1
+        },
+        "1091001261870034984": {
+            "money": 169,
+            "last_attendance": "2026-03-07",
+            "streak": 1,
+            "total_attendance": 1,
+            "win": 0,
+            "lose": 0
+        },
+        "600641724116631553": {
+            "money": 432,
+            "last_attendance": "2026-03-07",
+            "streak": 1,
+            "total_attendance": 1,
+            "win": 0,
+            "lose": 1
+        },
+        "1014544264723705867": {
+            "money": 500,
+            "last_attendance": "2026-03-07",
+            "streak": 1,
+            "total_attendance": 1,
+            "win": 1,
+            "lose": 3
+        }
+    }
 }

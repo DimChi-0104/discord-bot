@@ -220,14 +220,14 @@ class Gamble(commands.Cog):
             result = f"대박! `5배` 당첨!\n`+{reward} 코인`"
             color = discord.Color.gold()
 
-        elif roll <= 25:
+        elif roll <= 50:
             reward = amount * 2
             user["money"] += reward
             user["win"] += 1
             result = f"승리! `2배` 당첨!\n`+{reward} 코인`"
             color = discord.Color.green()
 
-        elif roll <= 50:
+        elif roll <= 75:
             result = "본전입니다.\n변동 없음"
             color = discord.Color.blurple()
 
