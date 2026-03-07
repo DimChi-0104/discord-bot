@@ -1,20 +1,24 @@
 {
     "users": {
         "662509817234980895": {
-            "money": 0,
+            "money": 189,
             "last_attendance": "2026-03-07",
             "streak": 1,
             "total_attendance": 1,
-            "win": 2,
-            "lose": 1
+            "win": 3,
+            "lose": 2,
+            "slot_win": 0,
+            "slot_lose": 0
         },
         "488115689744498720": {
-            "money": 163,
-            "last_attendance": "2026-03-07",
-            "streak": 1,
-            "total_attendance": 1,
+            "money": 364,
+            "last_attendance": "2026-03-08 01:15:53",
+            "streak": 2,
+            "total_attendance": 2,
             "win": 0,
-            "lose": 0
+            "lose": 0,
+            "slot_win": 0,
+            "slot_lose": 0
         },
         "1022479187623301140": {
             "money": 500,

@@ -1,0 +1,22 @@
+{
+    "logs": [
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 10000,
+            "time": "2026-03-08 01:09:16"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 299,
+            "time": "2026-03-08 01:15:23"
+        }
+    ]
+}

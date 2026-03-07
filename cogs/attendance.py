@@ -313,7 +313,6 @@ class Attendance(commands.Cog):
                 f"연속 출석: `{user['streak']}일`\n"
                 f"총 출석 횟수: `{user['total_attendance']}회`\n"
                 f"도박 전적: `{user['win']}승 / {user['lose']}패`\n"
-                f"슬롯 전적: `{user['slot_win']}승 / {user['slot_lose']}패`"
             ),
             color=discord.Color.blurple()
         )
