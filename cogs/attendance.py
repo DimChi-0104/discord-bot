@@ -18,6 +18,9 @@ MIN_TRANSFER = 10
 MAX_TRANSFER = 100000
 MAX_ADMIN_AMOUNT = 100000000
 
+ATTENDANCE_COOLDOWN = timedelta(hours=24)
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
 
 def load_data():
     os.makedirs("data", exist_ok=True)
@@ -58,6 +61,26 @@ def save_data(data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 
+def parse_datetime(value: str):
+    if not value or not isinstance(value, str):
+        return None
+
+    # 예전 날짜 저장 방식도 호환
+    formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d"
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(value, fmt)
+            return dt.replace(tzinfo=KST)
+        except ValueError:
+            continue
+
+    return None
+
+
 def get_user_data(data, user_id: int):
     user_id = str(user_id)
 
@@ -72,7 +95,9 @@ def get_user_data(data, user_id: int):
         "streak": 0,
         "total_attendance": 0,
         "win": 0,
-        "lose": 0
+        "lose": 0,
+        "slot_win": 0,
+        "slot_lose": 0
     }
 
     for key, value in defaults.items():
@@ -89,6 +114,10 @@ def get_user_data(data, user_id: int):
         user["win"] = 0
     if user["lose"] < 0:
         user["lose"] = 0
+    if user["slot_win"] < 0:
+        user["slot_win"] = 0
+    if user["slot_lose"] < 0:
+        user["slot_lose"] = 0
 
     return user
 
@@ -142,7 +171,7 @@ def add_admin_log(admin: discord.Member, target: discord.Member, action: str, am
         "target_name": target.display_name,
         "action": action,
         "amount": amount,
-        "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+        "time": datetime.now(KST).strftime(DATETIME_FORMAT)
     })
 
     if len(logs["logs"]) > 1000:
@@ -155,7 +184,7 @@ class Attendance(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="출석", description="하루 1회 출석하고 재화를 받습니다.")
+    @app_commands.command(name="출석", description="24시간마다 1회 출석하고 재화를 받습니다.")
     async def attendance(self, interaction: discord.Interaction):
         if interaction.guild is None:
             await interaction.response.send_message(
@@ -175,30 +204,38 @@ class Attendance(commands.Cog):
         user = get_user_data(data, interaction.user.id)
 
         now = datetime.now(KST)
-        today = now.strftime("%Y-%m-%d")
+        last_attendance_dt = parse_datetime(user["last_attendance"])
 
-        if user["last_attendance"] == today:
-            next_day = datetime(now.year, now.month, now.day, tzinfo=KST) + timedelta(days=1)
-            remain = next_day - now
-            total_seconds = max(0, int(remain.total_seconds()))
-            hours, remainder = divmod(total_seconds, 3600)
-            minutes, _ = divmod(remainder, 60)
+        if last_attendance_dt is not None:
+            next_attendance_dt = last_attendance_dt + ATTENDANCE_COOLDOWN
 
-            embed = discord.Embed(
-                title="이미 출석 완료",
-                description=(
-                    "오늘은 이미 출석했어요.\n"
-                    f"다음 출석까지: `{hours}시간 {minutes}분`"
-                ),
-                color=discord.Color.orange()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
+            if now < next_attendance_dt:
+                remain = next_attendance_dt - now
+                total_seconds = max(0, int(remain.total_seconds()))
+                hours, remainder = divmod(total_seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
 
-        yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+                embed = discord.Embed(
+                    title="이미 출석 완료",
+                    description=(
+                        "아직 다음 출석 시간이 되지 않았어요.\n"
+                        f"다음 출석 가능 시간: `{next_attendance_dt.strftime('%Y-%m-%d %H:%M:%S')} (KST)`\n"
+                        f"남은 시간: `{hours}시간 {minutes}분 {seconds}초`"
+                    ),
+                    color=discord.Color.orange()
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
 
-        if user["last_attendance"] == yesterday:
-            user["streak"] += 1
+        # 연속 출석 판정:
+        # 이전 출석 후 24시간은 지나야 하고,
+        # 48시간 이내에 다시 출석하면 연속 유지
+        if last_attendance_dt is not None:
+            diff = now - last_attendance_dt
+            if ATTENDANCE_COOLDOWN <= diff <= timedelta(hours=48):
+                user["streak"] += 1
+            else:
+                user["streak"] = 1
         else:
             user["streak"] = 1
 
@@ -207,24 +244,27 @@ class Attendance(commands.Cog):
         total_reward = base_reward + streak_bonus
 
         user["money"] += total_reward
-        user["last_attendance"] = today
+        user["last_attendance"] = now.strftime(DATETIME_FORMAT)
         user["total_attendance"] += 1
 
         if user["money"] < 0:
             user["money"] = 0
+
+        next_attendance_dt = now + ATTENDANCE_COOLDOWN
 
         save_data(data)
 
         embed = discord.Embed(
             title="출석 완료",
             description=(
-                f"{interaction.user.mention}님의 오늘 출석이 완료되었어요.\n\n"
+                f"{interaction.user.mention}님의 출석이 완료되었어요.\n\n"
                 f"기본 지급: `{base_reward} 코인`\n"
                 f"연속 출석 보너스: `{streak_bonus} 코인`\n"
                 f"총 획득: `{total_reward} 코인`\n\n"
                 f"현재 보유 재화: `{user['money']} 코인`\n"
                 f"연속 출석: `{user['streak']}일`\n"
-                f"총 출석 횟수: `{user['total_attendance']}회`"
+                f"총 출석 횟수: `{user['total_attendance']}회`\n"
+                f"다음 출석 가능 시간: `{next_attendance_dt.strftime('%Y-%m-%d %H:%M:%S')} (KST)`"
             ),
             color=discord.Color.green()
         )
@@ -259,14 +299,21 @@ class Attendance(commands.Cog):
         user = get_user_data(data, target.id)
         save_data(data)
 
+        last_attendance_text = "없음"
+        last_attendance_dt = parse_datetime(user["last_attendance"])
+        if last_attendance_dt is not None:
+            last_attendance_text = last_attendance_dt.strftime("%Y-%m-%d %H:%M:%S")
+
         embed = discord.Embed(
             title="지갑 정보",
             description=(
                 f"대상: {target.mention}\n"
                 f"보유 재화: `{user['money']} 코인`\n"
+                f"마지막 출석: `{last_attendance_text} (KST)`\n"
                 f"연속 출석: `{user['streak']}일`\n"
                 f"총 출석 횟수: `{user['total_attendance']}회`\n"
-                f"도박 전적: `{user['win']}승 / {user['lose']}패`"
+                f"도박 전적: `{user['win']}승 / {user['lose']}패`\n"
+                f"슬롯 전적: `{user['slot_win']}승 / {user['slot_lose']}패`"
             ),
             color=discord.Color.blurple()
         )
