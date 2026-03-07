@@ -7,6 +7,7 @@ import random
 from datetime import datetime, timedelta, timezone
 
 DATA_FILE = "data/economy.json"
+LOG_FILE = "data/economy_admin_logs.json"
 KST = timezone(timedelta(hours=9))
 
 MIN_REWARD = 100
@@ -90,6 +91,64 @@ def get_user_data(data, user_id: int):
         user["lose"] = 0
 
     return user
+
+
+def load_admin_logs():
+    os.makedirs("data", exist_ok=True)
+
+    if not os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "w", encoding="utf-8") as f:
+            json.dump({"logs": []}, f, ensure_ascii=False, indent=4)
+        return {"logs": []}
+
+    try:
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        if not isinstance(data, dict):
+            data = {"logs": []}
+
+        if "logs" not in data or not isinstance(data["logs"], list):
+            data["logs"] = []
+
+        return data
+
+    except (json.JSONDecodeError, OSError):
+        with open(LOG_FILE, "w", encoding="utf-8") as f:
+            json.dump({"logs": []}, f, ensure_ascii=False, indent=4)
+        return {"logs": []}
+
+
+def save_admin_logs(data):
+    os.makedirs("data", exist_ok=True)
+
+    if not isinstance(data, dict):
+        data = {"logs": []}
+
+    if "logs" not in data or not isinstance(data["logs"], list):
+        data["logs"] = []
+
+    with open(LOG_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+def add_admin_log(admin: discord.Member, target: discord.Member, action: str, amount: int):
+    logs = load_admin_logs()
+
+    logs["logs"].append({
+        "admin_id": admin.id,
+        "admin_name": admin.display_name,
+        "target_id": target.id,
+        "target_name": target.display_name,
+        "action": action,
+        "amount": amount,
+        "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+    })
+
+    if len(logs["logs"]) > 1000:
+        logs["logs"] = logs["logs"][-1000:]
+
+    save_admin_logs(logs)
 
 
 class Attendance(commands.Cog):
@@ -329,7 +388,6 @@ class Attendance(commands.Cog):
             return
 
         data = load_data()
-
         sender = get_user_data(data, interaction.user.id)
         receiver = get_user_data(data, 대상.id)
 
@@ -345,7 +403,6 @@ class Attendance(commands.Cog):
 
         if sender["money"] < 0:
             sender["money"] = 0
-
         if receiver["money"] < 0:
             receiver["money"] = 0
 
@@ -407,6 +464,7 @@ class Attendance(commands.Cog):
             user["money"] = 0
 
         save_data(data)
+        add_admin_log(interaction.user, 대상, "지급", 금액)
 
         embed = discord.Embed(
             title="재화 지급 완료",
@@ -464,6 +522,7 @@ class Attendance(commands.Cog):
             user["money"] = 0
 
         save_data(data)
+        add_admin_log(interaction.user, 대상, "차감", 금액)
 
         embed = discord.Embed(
             title="재화 차감 완료",
@@ -519,6 +578,7 @@ class Attendance(commands.Cog):
         user["money"] = 금액
 
         save_data(data)
+        add_admin_log(interaction.user, 대상, "설정", 금액)
 
         embed = discord.Embed(
             title="재화 설정 완료",
@@ -531,6 +591,41 @@ class Attendance(commands.Cog):
             color=discord.Color.blurple()
         )
         await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="재화로그", description="최근 관리자 재화 로그를 확인합니다. (관리자 전용)")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def money_logs(self, interaction: discord.Interaction):
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "이 명령어는 서버에서만 사용할 수 있어요.",
+                ephemeral=True
+            )
+            return
+
+        logs = load_admin_logs().get("logs", [])
+
+        if not logs:
+            await interaction.response.send_message(
+                "아직 관리자 재화 로그가 없어요.",
+                ephemeral=True
+            )
+            return
+
+        recent_logs = logs[-10:][::-1]
+
+        lines = []
+        for log in recent_logs:
+            lines.append(
+                f"`[{log['time']}]` {log['admin_name']} → {log['target_name']} | "
+                f"{log['action']} `{log['amount']} 코인`"
+            )
+
+        embed = discord.Embed(
+            title="🛠 최근 관리자 재화 로그",
+            description="\n".join(lines),
+            color=discord.Color.orange()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot):

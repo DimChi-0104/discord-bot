@@ -5,8 +5,6 @@ import json
 import os
 import random
 
-print("=== gamble.py import 성공 ===")
-
 DATA_FILE = "data/economy.json"
 MIN_BET = 10
 MAX_BET = 100000
@@ -74,16 +72,12 @@ def get_user_data(data, user_id: int):
 
     if user["money"] < 0:
         user["money"] = 0
-
     if user["streak"] < 0:
         user["streak"] = 0
-
     if user["total_attendance"] < 0:
         user["total_attendance"] = 0
-
     if user["win"] < 0:
         user["win"] = 0
-
     if user["lose"] < 0:
         user["lose"] = 0
 
@@ -257,7 +251,73 @@ class Gamble(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
+    @app_commands.command(name="도박랭킹", description="도박 승수 랭킹을 확인합니다.")
+    async def gamble_ranking(self, interaction: discord.Interaction):
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "이 명령어는 서버에서만 사용할 수 있어요.",
+                ephemeral=True
+            )
+            return
+
+        data = load_data()
+        users = data.get("users", {})
+
+        ranking = []
+
+        for user_id, info in users.items():
+            if not isinstance(info, dict):
+                continue
+
+            try:
+                member = interaction.guild.get_member(int(user_id))
+            except ValueError:
+                continue
+
+            if member is None or member.bot:
+                continue
+
+            win = info.get("win", 0)
+            lose = info.get("lose", 0)
+
+            if not isinstance(win, int) or win < 0:
+                win = 0
+            if not isinstance(lose, int) or lose < 0:
+                lose = 0
+
+            total = win + lose
+            if total == 0:
+                continue
+
+            ranking.append((member, win, lose, total))
+
+        ranking.sort(key=lambda x: (-x[1], x[2], -x[3], x[0].display_name.lower()))
+        top_10 = ranking[:10]
+
+        if not top_10:
+            await interaction.response.send_message(
+                "아직 도박 전적 데이터가 없어요.",
+                ephemeral=True
+            )
+            return
+
+        medals = ["🥇", "🥈", "🥉"]
+        lines = []
+
+        for idx, (member, win, lose, total) in enumerate(top_10, start=1):
+            prefix = medals[idx - 1] if idx <= 3 else f"{idx}위"
+            win_rate = (win / total) * 100 if total > 0 else 0
+            lines.append(
+                f"{prefix} {member.display_name} - `승 {win} / 패 {lose}` · `승률 {win_rate:.1f}%`"
+            )
+
+        embed = discord.Embed(
+            title="🎰 도박 랭킹 TOP 10",
+            description="\n".join(lines),
+            color=discord.Color.gold()
+        )
+        await interaction.response.send_message(embed=embed)
+
 
 async def setup(bot):
-    print("=== gamble.py setup 호출됨 ===")
     await bot.add_cog(Gamble(bot))
