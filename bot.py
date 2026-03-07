@@ -14,8 +14,15 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f"{bot.user} 로그인 완료!")
 
+async def load_cogs():
+    for file in os.listdir("./cogs"):
+        if file.endswith(".py"):
+            await bot.load_extension(f"cogs.{file[:-3]}")
+            print(f"{file} 로드 완료")
+
 async def main():
-    await bot.load_extension("cogs.timer")
-    await bot.start(TOKEN)
+    async with bot:
+        await load_cogs()
+        await bot.start(TOKEN)
 
 asyncio.run(main())
