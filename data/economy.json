@@ -1,14 +1,37 @@
 {
     "users": {
         "662509817234980895": {
-            "money": 0,
+            "money": 159650,
             "last_attendance": "2026-03-08",
             "streak": 2,
             "total_attendance": 2,
             "win": 5,
-            "lose": 5,
+            "lose": 6,
             "slot_win": 0,
-            "slot_lose": 0
+            "slot_lose": 1,
+            "inventory": {
+                "출석보너스권": 11
+            },
+            "active_effects": {
+                "luck": 0,
+                "slot_effect": 0,
+                "title_ticket": 1,
+                "nickname_change": 1,
+                "title_create": 0
+            },
+            "titles": [
+                {
+                    "id": 1,
+                    "name": "테스트용",
+                    "color": "#FFD700",
+                    "level": 2,
+                    "equipped": true
+                }
+            ],
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            }
         },
         "488115689744498720": {
             "money": 176,
@@ -21,12 +44,26 @@
             "slot_lose": 0
         },
         "1022479187623301140": {
-            "money": 500,
-            "last_attendance": "2026-03-07",
-            "streak": 1,
-            "total_attendance": 1,
-            "win": 0,
-            "lose": 1
+            "money": 148022,
+            "last_attendance": "2026-03-08 13:26:20",
+            "streak": 2,
+            "total_attendance": 2,
+            "win": 6,
+            "lose": 4,
+            "slot_win": 0,
+            "slot_lose": 19,
+            "inventory": {},
+            "active_effects": {
+                "luck": 0,
+                "title_ticket": 0,
+                "nickname_change": 0,
+                "title_create": 0
+            },
+            "titles": [],
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            }
         },
         "1091001261870034984": {
             "money": 1,
@@ -81,6 +118,42 @@
             "lose": 1,
             "slot_win": 0,
             "slot_lose": 0
+        },
+        "1352556869771853894": {
+            "money": 202,
+            "last_attendance": "2026-03-08 13:41:15",
+            "streak": 1,
+            "total_attendance": 1,
+            "win": 0,
+            "lose": 0,
+            "slot_win": 0,
+            "slot_lose": 0,
+            "inventory": {},
+            "active_effects": {
+                "luck": 0,
+                "title_ticket": 0,
+                "nickname_change": 0
+            }
+        },
+        "503085914139000833": {
+            "money": 112,
+            "last_attendance": "2026-03-08 13:56:55",
+            "streak": 1,
+            "total_attendance": 1,
+            "win": 0,
+            "lose": 0,
+            "slot_win": 0,
+            "slot_lose": 0,
+            "inventory": {},
+            "active_effects": {
+                "luck": 0,
+                "title_ticket": 0,
+                "nickname_change": 0
+            }
         }
+    },
+    "title_ranking": {
+        "season": "2026-03",
+        "users": {}
     }
 }

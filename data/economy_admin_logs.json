@@ -116,6 +116,51 @@
             "action": "설정",
             "amount": 100000,
             "time": "2026-03-08 00:55:17"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 20000,
+            "time": "2026-03-08 11:52:18"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 2000,
+            "time": "2026-03-08 12:42:02"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 20000,
+            "time": "2026-03-08 13:07:42"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 1022479187623301140,
+            "target_name": "딸기푸디잉",
+            "action": "지급",
+            "amount": 200000,
+            "time": "2026-03-08 13:42:58"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "설정",
+            "amount": 200000,
+            "time": "2026-03-08 13:45:15"
         }
     ]
 }

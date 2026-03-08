@@ -17,6 +17,7 @@ MAX_STREAK_BONUS = 100
 MIN_TRANSFER = 10
 MAX_TRANSFER = 100000
 MAX_ADMIN_AMOUNT = 100000000
+TRANSFER_TAX_RATE = 0.05
 
 ATTENDANCE_COOLDOWN = timedelta(hours=24)
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -60,15 +61,17 @@ def save_data(data):
     if "users" not in data or not isinstance(data["users"], dict):
         data["users"] = {}
 
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
+    temp_file = DATA_FILE + ".tmp"
+    with open(temp_file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
+    os.replace(temp_file, DATA_FILE)
 
 
 def parse_datetime(value: str):
     if not value or not isinstance(value, str):
         return None
 
-    # 예전 날짜 저장 방식도 호환
     formats = [
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%d"
@@ -101,7 +104,12 @@ def get_user_data(data, user_id: int):
         "lose": 0,
         "slot_win": 0,
         "slot_lose": 0,
-        "inventory": {}
+        "inventory": {},
+        "active_effects": {
+            "luck": 0,
+            "title_ticket": 0,
+            "nickname_change": 0
+        }
     }
 
     for key, value in defaults.items():
@@ -110,6 +118,13 @@ def get_user_data(data, user_id: int):
 
     if "inventory" not in user or not isinstance(user["inventory"], dict):
         user["inventory"] = {}
+
+    if "active_effects" not in user or not isinstance(user["active_effects"], dict):
+        user["active_effects"] = {}
+
+    user["active_effects"].setdefault("luck", 0)
+    user["active_effects"].setdefault("title_ticket", 0)
+    user["active_effects"].setdefault("nickname_change", 0)
 
     if user["money"] < 0:
         user["money"] = 0
@@ -164,8 +179,11 @@ def save_admin_logs(data):
     if "logs" not in data or not isinstance(data["logs"], list):
         data["logs"] = []
 
-    with open(LOG_FILE, "w", encoding="utf-8") as f:
+    temp_file = LOG_FILE + ".tmp"
+    with open(temp_file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
+    os.replace(temp_file, LOG_FILE)
 
 
 def add_admin_log(admin: discord.Member, target: discord.Member, action: str, amount: int):
@@ -194,17 +212,11 @@ class Attendance(commands.Cog):
     @app_commands.command(name="출석", description="24시간마다 1회 출석하고 재화를 받습니다.")
     async def attendance(self, interaction: discord.Interaction):
         if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
             return
 
         if interaction.user.bot:
-            await interaction.response.send_message(
-                "봇 계정은 사용할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("봇 계정은 사용할 수 없어요.", ephemeral=True)
             return
 
         data = load_data()
@@ -234,9 +246,6 @@ class Attendance(commands.Cog):
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 return
 
-        # 연속 출석 판정:
-        # 이전 출석 후 24시간은 지나야 하고,
-        # 48시간 이내에 다시 출석하면 연속 유지
         if last_attendance_dt is not None:
             diff = now - last_attendance_dt
             if ATTENDANCE_COOLDOWN <= diff <= timedelta(hours=48):
@@ -248,7 +257,22 @@ class Attendance(commands.Cog):
 
         base_reward = random.randint(MIN_REWARD, MAX_REWARD)
         streak_bonus = min(user["streak"] * 10, MAX_STREAK_BONUS)
-        total_reward = base_reward + streak_bonus
+
+        inventory = user.get("inventory", {})
+        bonus_ticket_count = inventory.get(BONUS_TICKET_NAME, 0)
+
+        used_bonus_ticket = False
+        bonus_ticket_reward = 0
+
+        if isinstance(bonus_ticket_count, int) and bonus_ticket_count > 0:
+            inventory[BONUS_TICKET_NAME] -= 1
+            if inventory[BONUS_TICKET_NAME] <= 0:
+                del inventory[BONUS_TICKET_NAME]
+
+            used_bonus_ticket = True
+            bonus_ticket_reward = BONUS_TICKET_REWARD
+
+        total_reward = base_reward + streak_bonus + bonus_ticket_reward
 
         user["money"] += total_reward
         user["last_attendance"] = now.strftime(DATETIME_FORMAT)
@@ -258,7 +282,6 @@ class Attendance(commands.Cog):
             user["money"] = 0
 
         next_attendance_dt = now + ATTENDANCE_COOLDOWN
-
         save_data(data)
 
         embed = discord.Embed(
@@ -267,6 +290,7 @@ class Attendance(commands.Cog):
                 f"{interaction.user.mention}님의 출석이 완료되었어요.\n\n"
                 f"기본 지급: `{base_reward} 코인`\n"
                 f"연속 출석 보너스: `{streak_bonus} 코인`\n"
+                f"출석보너스권: `+{bonus_ticket_reward} 코인`\n"
                 f"총 획득: `{total_reward} 코인`\n\n"
                 f"현재 보유 재화: `{user['money']} 코인`\n"
                 f"연속 출석: `{user['streak']}일`\n"
@@ -275,31 +299,28 @@ class Attendance(commands.Cog):
             ),
             color=discord.Color.green()
         )
+
+        if used_bonus_ticket:
+            embed.set_footer(text="출석보너스권 1개가 자동 사용되었어요.")
+        else:
+            embed.set_footer(text="보유 중인 출석보너스권이 없어 기본 보상만 지급되었어요.")
+
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="지갑", description="현재 보유한 재화를 확인합니다.")
     async def wallet(self, interaction: discord.Interaction, 대상: discord.Member = None):
         if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
             return
 
         if interaction.user.bot:
-            await interaction.response.send_message(
-                "봇 계정은 사용할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("봇 계정은 사용할 수 없어요.", ephemeral=True)
             return
 
         target = 대상 or interaction.user
 
         if target.bot:
-            await interaction.response.send_message(
-                "봇 계정의 지갑은 확인할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("봇 계정의 지갑은 확인할 수 없어요.", ephemeral=True)
             return
 
         data = load_data()
@@ -311,6 +332,9 @@ class Attendance(commands.Cog):
         if last_attendance_dt is not None:
             last_attendance_text = last_attendance_dt.strftime("%Y-%m-%d %H:%M:%S")
 
+        inventory = user.get("inventory", {})
+        bonus_ticket_count = inventory.get(BONUS_TICKET_NAME, 0)
+
         embed = discord.Embed(
             title="지갑 정보",
             description=(
@@ -320,6 +344,7 @@ class Attendance(commands.Cog):
                 f"연속 출석: `{user['streak']}일`\n"
                 f"총 출석 횟수: `{user['total_attendance']}회`\n"
                 f"도박 전적: `{user['win']}승 / {user['lose']}패`\n"
+                f"출석보너스권: `{bonus_ticket_count}개`\n"
             ),
             color=discord.Color.blurple()
         )
@@ -328,22 +353,15 @@ class Attendance(commands.Cog):
     @app_commands.command(name="재화랭킹", description="서버 내 재화 랭킹을 확인합니다.")
     async def money_ranking(self, interaction: discord.Interaction):
         if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
             return
 
         if interaction.user.bot:
-            await interaction.response.send_message(
-                "봇 계정은 사용할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("봇 계정은 사용할 수 없어요.", ephemeral=True)
             return
 
         data = load_data()
         users = data.get("users", {})
-
         ranking = []
 
         for user_id, info in users.items():
@@ -370,10 +388,7 @@ class Attendance(commands.Cog):
         top_10 = ranking[:10]
 
         if not top_10:
-            await interaction.response.send_message(
-                "아직 등록된 유저 데이터가 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("아직 등록된 유저 데이터가 없어요.", ephemeral=True)
             return
 
         lines = []
@@ -390,40 +405,23 @@ class Attendance(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="송금", description="다른 유저에게 재화를 송금합니다.")
+    @app_commands.command(name="송금", description="다른 유저에게 재화를 송금합니다. (세금 포함)")
     @app_commands.checks.cooldown(1, 3.0)
-    async def transfer(
-        self,
-        interaction: discord.Interaction,
-        대상: discord.Member,
-        금액: int
-    ):
+    async def transfer(self, interaction: discord.Interaction, 대상: discord.Member, 금액: int):
         if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
             return
 
         if interaction.user.bot:
-            await interaction.response.send_message(
-                "봇 계정은 사용할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("봇 계정은 사용할 수 없어요.", ephemeral=True)
             return
 
         if 대상.bot:
-            await interaction.response.send_message(
-                "봇에게는 송금할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("봇에게는 송금할 수 없어요.", ephemeral=True)
             return
 
         if 대상.id == interaction.user.id:
-            await interaction.response.send_message(
-                "자기 자신에게는 송금할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("자기 자신에게는 송금할 수 없어요.", ephemeral=True)
             return
 
         if 금액 < MIN_TRANSFER:
@@ -451,8 +449,15 @@ class Attendance(commands.Cog):
             )
             return
 
+        tax = max(1, int(금액 * TRANSFER_TAX_RATE))
+        receive_amount = 금액 - tax
+
+        if receive_amount <= 0:
+            await interaction.response.send_message("세금 계산 결과 송금 가능한 금액이 없어요.", ephemeral=True)
+            return
+
         sender["money"] -= 금액
-        receiver["money"] += 금액
+        receiver["money"] += receive_amount
 
         if sender["money"] < 0:
             sender["money"] = 0
@@ -466,7 +471,9 @@ class Attendance(commands.Cog):
             description=(
                 f"보낸 사람: {interaction.user.mention}\n"
                 f"받는 사람: {대상.mention}\n"
-                f"송금 금액: `{금액} 코인`\n\n"
+                f"송금 금액: `{금액} 코인`\n"
+                f"세금: `{tax} 코인`\n"
+                f"실제 전달: `{receive_amount} 코인`\n\n"
                 f"내 현재 보유 재화: `{sender['money']} 코인`"
             ),
             color=discord.Color.green()
@@ -475,31 +482,17 @@ class Attendance(commands.Cog):
 
     @app_commands.command(name="재화지급", description="유저에게 재화를 지급합니다. (관리자 전용)")
     @app_commands.checks.has_permissions(administrator=True)
-    async def give_money(
-        self,
-        interaction: discord.Interaction,
-        대상: discord.Member,
-        금액: int
-    ):
+    async def give_money(self, interaction: discord.Interaction, 대상: discord.Member, 금액: int):
         if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
             return
 
         if 대상.bot:
-            await interaction.response.send_message(
-                "봇 계정에는 재화를 지급할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("봇 계정에는 재화를 지급할 수 없어요.", ephemeral=True)
             return
 
         if 금액 <= 0:
-            await interaction.response.send_message(
-                "지급 금액은 1 이상이어야 해요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("지급 금액은 1 이상이어야 해요.", ephemeral=True)
             return
 
         if 금액 > MAX_ADMIN_AMOUNT:
@@ -533,31 +526,17 @@ class Attendance(commands.Cog):
 
     @app_commands.command(name="재화차감", description="유저의 재화를 차감합니다. (관리자 전용)")
     @app_commands.checks.has_permissions(administrator=True)
-    async def take_money(
-        self,
-        interaction: discord.Interaction,
-        대상: discord.Member,
-        금액: int
-    ):
+    async def take_money(self, interaction: discord.Interaction, 대상: discord.Member, 금액: int):
         if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
             return
 
         if 대상.bot:
-            await interaction.response.send_message(
-                "봇 계정의 재화는 차감할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("봇 계정의 재화는 차감할 수 없어요.", ephemeral=True)
             return
 
         if 금액 <= 0:
-            await interaction.response.send_message(
-                "차감 금액은 1 이상이어야 해요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("차감 금액은 1 이상이어야 해요.", ephemeral=True)
             return
 
         if 금액 > MAX_ADMIN_AMOUNT:
@@ -591,31 +570,17 @@ class Attendance(commands.Cog):
 
     @app_commands.command(name="재화설정", description="유저의 재화를 원하는 값으로 설정합니다. (관리자 전용)")
     @app_commands.checks.has_permissions(administrator=True)
-    async def set_money(
-        self,
-        interaction: discord.Interaction,
-        대상: discord.Member,
-        금액: int
-    ):
+    async def set_money(self, interaction: discord.Interaction, 대상: discord.Member, 금액: int):
         if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
             return
 
         if 대상.bot:
-            await interaction.response.send_message(
-                "봇 계정의 재화는 설정할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("봇 계정의 재화는 설정할 수 없어요.", ephemeral=True)
             return
 
         if 금액 < 0:
-            await interaction.response.send_message(
-                "재화는 0 미만으로 설정할 수 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("재화는 0 미만으로 설정할 수 없어요.", ephemeral=True)
             return
 
         if 금액 > MAX_ADMIN_AMOUNT:
@@ -629,7 +594,6 @@ class Attendance(commands.Cog):
         user = get_user_data(data, 대상.id)
 
         user["money"] = 금액
-
         save_data(data)
         add_admin_log(interaction.user, 대상, "설정", 금액)
 
@@ -649,24 +613,18 @@ class Attendance(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def money_logs(self, interaction: discord.Interaction):
         if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
             return
 
         logs = load_admin_logs().get("logs", [])
 
         if not logs:
-            await interaction.response.send_message(
-                "아직 관리자 재화 로그가 없어요.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("아직 관리자 재화 로그가 없어요.", ephemeral=True)
             return
 
         recent_logs = logs[-10:][::-1]
-
         lines = []
+
         for log in recent_logs:
             lines.append(
                 f"`[{log['time']}]` {log['admin_name']} → {log['target_name']} | "
