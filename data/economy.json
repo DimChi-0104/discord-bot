@@ -1,7 +1,7 @@
 {
     "users": {
         "662509817234980895": {
-            "money": 159650,
+            "money": 159981,
             "last_attendance": "2026-03-08",
             "streak": 2,
             "total_attendance": 2,
@@ -31,7 +31,8 @@
             "title_data": {
                 "name": "",
                 "color": "#FFFFFF"
-            }
+            },
+            "last_work": "2026-03-08 14:15:10"
         },
         "488115689744498720": {
             "money": 176,
