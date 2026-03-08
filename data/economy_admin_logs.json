@@ -3,11 +3,29 @@
         {
             "admin_id": 662509817234980895,
             "admin_name": "DimChi",
-            "target_id": 662509817234980895,
-            "target_name": "DimChi",
+            "target_id": 1091001261870034984,
+            "target_name": "☆♡D_B♤♧(디브)",
             "action": "지급",
             "amount": 10000,
-            "time": "2026-03-08 01:09:16"
+            "time": "2026-03-07 23:34:57"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 1091001261870034984,
+            "target_name": "☆♡D_B♤♧(디브)",
+            "action": "차감",
+            "amount": 10000,
+            "time": "2026-03-07 23:35:12"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 1014544264723705867,
+            "target_name": "시츠네",
+            "action": "지급",
+            "amount": 500,
+            "time": "2026-03-08 00:01:57"
         },
         {
             "admin_id": 662509817234980895,
@@ -15,8 +33,89 @@
             "target_id": 662509817234980895,
             "target_name": "DimChi",
             "action": "지급",
-            "amount": 299,
-            "time": "2026-03-08 01:15:23"
+            "amount": 500,
+            "time": "2026-03-08 00:04:15"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 1014544264723705867,
+            "target_name": "시츠네",
+            "action": "지급",
+            "amount": 500,
+            "time": "2026-03-08 00:05:32"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 1022479187623301140,
+            "target_name": "딸기푸디잉",
+            "action": "지급",
+            "amount": 500,
+            "time": "2026-03-08 00:05:39"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 1014544264723705867,
+            "target_name": "시츠네",
+            "action": "지급",
+            "amount": 500,
+            "time": "2026-03-08 00:06:48"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 1014544264723705867,
+            "target_name": "시츠네",
+            "action": "지급",
+            "amount": 500,
+            "time": "2026-03-08 00:12:38"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 500,
+            "time": "2026-03-08 00:14:28"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 500,
+            "time": "2026-03-08 00:15:13"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 5000,
+            "time": "2026-03-08 00:15:35"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 845885046656860212,
+            "target_name": "[PILGRIM] Snow White",
+            "action": "설정",
+            "amount": 20000,
+            "time": "2026-03-08 00:46:02"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 845885046656860212,
+            "target_name": "[PILGRIM] Snow White",
+            "action": "설정",
+            "amount": 100000,
+            "time": "2026-03-08 00:55:17"
         }
     ]
 }

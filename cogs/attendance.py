@@ -21,6 +21,9 @@ MAX_ADMIN_AMOUNT = 100000000
 ATTENDANCE_COOLDOWN = timedelta(hours=24)
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+BONUS_TICKET_NAME = "출석보너스권"
+BONUS_TICKET_REWARD = 500
+
 
 def load_data():
     os.makedirs("data", exist_ok=True)
@@ -97,12 +100,16 @@ def get_user_data(data, user_id: int):
         "win": 0,
         "lose": 0,
         "slot_win": 0,
-        "slot_lose": 0
+        "slot_lose": 0,
+        "inventory": {}
     }
 
     for key, value in defaults.items():
         if key not in user or not isinstance(user[key], type(value)):
             user[key] = value
+
+    if "inventory" not in user or not isinstance(user["inventory"], dict):
+        user["inventory"] = {}
 
     if user["money"] < 0:
         user["money"] = 0

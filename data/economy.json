@@ -1,22 +1,22 @@
 {
     "users": {
         "662509817234980895": {
-            "money": 189,
-            "last_attendance": "2026-03-07",
-            "streak": 1,
-            "total_attendance": 1,
-            "win": 3,
-            "lose": 2,
+            "money": 0,
+            "last_attendance": "2026-03-08",
+            "streak": 2,
+            "total_attendance": 2,
+            "win": 5,
+            "lose": 5,
             "slot_win": 0,
             "slot_lose": 0
         },
         "488115689744498720": {
-            "money": 364,
-            "last_attendance": "2026-03-08 01:15:53",
+            "money": 176,
+            "last_attendance": "2026-03-08 01:53:22",
             "streak": 2,
             "total_attendance": 2,
-            "win": 0,
-            "lose": 0,
+            "win": 1,
+            "lose": 3,
             "slot_win": 0,
             "slot_lose": 0
         },
@@ -29,12 +29,14 @@
             "lose": 1
         },
         "1091001261870034984": {
-            "money": 169,
-            "last_attendance": "2026-03-07",
-            "streak": 1,
-            "total_attendance": 1,
+            "money": 1,
+            "last_attendance": "2026-03-08 08:35:50",
+            "streak": 2,
+            "total_attendance": 2,
             "win": 0,
-            "lose": 0
+            "lose": 7,
+            "slot_win": 0,
+            "slot_lose": 0
         },
         "600641724116631553": {
             "money": 432,
@@ -45,12 +47,40 @@
             "lose": 1
         },
         "1014544264723705867": {
-            "money": 500,
-            "last_attendance": "2026-03-07",
+            "money": 243,
+            "last_attendance": "2026-03-08 08:22:22",
+            "streak": 2,
+            "total_attendance": 2,
+            "win": 1,
+            "lose": 7,
+            "slot_win": 0,
+            "slot_lose": 0
+        },
+        "845885046656860212": {
+            "money": 52000,
+            "last_attendance": "2026-03-08",
             "streak": 1,
             "total_attendance": 1,
-            "win": 1,
-            "lose": 3
+            "win": 30,
+            "lose": 16
+        },
+        "1029357060099416084": {
+            "money": 30000,
+            "last_attendance": "",
+            "streak": 0,
+            "total_attendance": 0,
+            "win": 0,
+            "lose": 0
+        },
+        "663289490470731788": {
+            "money": 0,
+            "last_attendance": "2026-03-08 04:51:52",
+            "streak": 1,
+            "total_attendance": 1,
+            "win": 0,
+            "lose": 1,
+            "slot_win": 0,
+            "slot_lose": 0
         }
     }
 }
