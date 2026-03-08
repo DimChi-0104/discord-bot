@@ -1,7 +1,7 @@
 {
     "users": {
         "662509817234980895": {
-            "money": 159981,
+            "money": 99981,
             "last_attendance": "2026-03-08",
             "streak": 2,
             "total_attendance": 2,
@@ -24,7 +24,7 @@
                     "id": 1,
                     "name": "테스트용",
                     "color": "#FFD700",
-                    "level": 2,
+                    "level": 3,
                     "equipped": true
                 }
             ],
@@ -32,7 +32,13 @@
                 "name": "",
                 "color": "#FFFFFF"
             },
-            "last_work": "2026-03-08 14:15:10"
+            "last_work": "2026-03-08 14:15:10",
+            "properties": {
+                "원룸": 1,
+                "상가": 0,
+                "빌딩": 0
+            },
+            "last_rent": ""
         },
         "488115689744498720": {
             "money": 176,
@@ -155,6 +161,11 @@
     },
     "title_ranking": {
         "season": "2026-03",
-        "users": {}
+        "users": {
+            "662509817234980895": {
+                "best_level": 3,
+                "title_name": "테스트용"
+            }
+        }
     }
 }
