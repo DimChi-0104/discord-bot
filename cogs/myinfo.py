@@ -197,7 +197,7 @@ class MyInfo(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="내정보", description="내 프로필 정보와 장착한 칭호, 통계를 확인합니다.")
+    @app_commands.command(name="정보", description="프로필 정보와 장착한 칭호, 통계를 확인합니다.")
     async def my_info(self, interaction: discord.Interaction, 대상: discord.Member = None):
         if interaction.guild is None:
             await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)

@@ -1,39 +1,35 @@
 {
   "items": {
-    "출석보너스권": {
-      "price": 350,
-      "description": "출석 시 자동으로 1개 사용되어 추가 보상 500코인을 지급합니다.",
-      "category": "소모품",
-      "buyable": true,
-      "usable": false,
-      "auto_use": true,
-      "effect_type": "attendance_bonus"
-    },
-    "행운권": {
-      "price": 7500,
-      "description": "직접 사용 시 다음 도박/슬롯 1회에 행운 효과가 적용됩니다.",
+    "서버장의 은총": {
+      "price": 5000,
+      "description": "다음 도박 1회에 확률이 5% 증가합니다.",
       "category": "소모품",
       "buyable": true,
       "usable": true,
-      "auto_use": false,
-      "effect_type": "luck"
+      "effect_type": "luck_5"
+    },
+    "명경지수": {
+      "price": 12000,
+      "description": "다음 도박 1회에 확률이 10% 증가합니다.",
+      "category": "소모품",
+      "buyable": true,
+      "usable": true,
+      "effect_type": "luck_10"
     },
     "칭호생성권": {
       "price": 5000,
-      "description": "직접 사용 후 칭호 이름과 색상을 설정해 새 칭호를 만들 수 있습니다.",
-      "category": "장식",
+      "description": "사용 시 원하는 칭호를 직접 만들 수 있습니다.",
+      "category": "칭호",
       "buyable": true,
       "usable": true,
-      "auto_use": false,
       "effect_type": "title_create"
     },
     "닉네임변경권": {
       "price": 10000,
-      "description": "직접 사용 후 서버 닉네임을 변경할 수 있습니다.",
-      "category": "장식",
+      "description": "사용 시 서버 닉네임을 변경할 수 있습니다.",
+      "category": "기타",
       "buyable": true,
       "usable": true,
-      "auto_use": false,
       "effect_type": "nickname_change"
     }
   }

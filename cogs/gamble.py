@@ -1,29 +1,31 @@
-import discord
-from discord import app_commands
-from discord.ext import commands
+import asyncio
 import json
 import os
 import random
+import tempfile
+from pathlib import Path
 
-DATA_FILE = "data/economy.json"
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+DATA_FILE = Path("data/economy.json")
 
 MIN_BET = 10
 MAX_BET = 100000
-
-BASE_WIN_CHANCE = 0.45
-LUCK_BONUS_CHANCE = 0.05  # 행운권 사용 시 45% -> 50%
-
-SLOT_SYMBOLS = ["🍒", "🍋", "🔔", "💎", "💀"]
-SLOT_REWARD_MULTIPLIER = 100
+COOLDOWN = 5
+BASE_PROBABILITY = 0.5
+NORMAL_DELAY = 0.35
+FINAL_DELAY = 0.85
 
 
 def load_data():
-    os.makedirs("data", exist_ok=True)
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    if not os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump({"users": {}}, f, ensure_ascii=False, indent=4)
-        return {"users": {}}
+    if not DATA_FILE.exists():
+        data = {"users": {}}
+        save_data(data)
+        return data
 
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -36,36 +38,40 @@ def load_data():
             data["users"] = {}
 
         return data
-
-    except (json.JSONDecodeError, OSError):
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump({"users": {}}, f, ensure_ascii=False, indent=4)
-        return {"users": {}}
+    except Exception:
+        data = {"users": {}}
+        save_data(data)
+        return data
 
 
 def save_data(data):
-    os.makedirs("data", exist_ok=True)
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    if not isinstance(data, dict):
-        data = {"users": {}}
+    fd, temp_path = tempfile.mkstemp(dir=str(DATA_FILE.parent), suffix=".tmp")
+
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+            json.dump(data, tmp, ensure_ascii=False, indent=4)
+
+        os.replace(temp_path, DATA_FILE)
+    except Exception:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
+
+
+def ensure_user(data, user_id):
+    user_id = str(user_id)
 
     if "users" not in data or not isinstance(data["users"], dict):
         data["users"] = {}
 
-    temp_file = DATA_FILE + ".tmp"
-    with open(temp_file, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    users = data["users"]
 
-    os.replace(temp_file, DATA_FILE)
+    if user_id not in users or not isinstance(users[user_id], dict):
+        users[user_id] = {}
 
-
-def get_user_data(data, user_id: int):
-    user_id = str(user_id)
-
-    if user_id not in data["users"] or not isinstance(data["users"][user_id], dict):
-        data["users"][user_id] = {}
-
-    user = data["users"][user_id]
+    user = users[user_id]
 
     defaults = {
         "money": 0,
@@ -76,409 +82,255 @@ def get_user_data(data, user_id: int):
         "lose": 0,
         "slot_win": 0,
         "slot_lose": 0,
-        "inventory": {},
-        "active_effects": {
-            "luck": 0,
-            "title_ticket": 0,
-            "nickname_change": 0
-        }
+        "inventory": [],
+        "active_effects": {},
     }
 
-    for key, value in defaults.items():
-        if key not in user or not isinstance(user[key], type(value)):
-            user[key] = value
+    for k, v in defaults.items():
+        if k not in user:
+            if isinstance(v, list):
+                user[k] = []
+            elif isinstance(v, dict):
+                user[k] = {}
+            else:
+                user[k] = v
 
-    if "inventory" not in user or not isinstance(user["inventory"], dict):
-        user["inventory"] = {}
+    int_fields = ["money", "streak", "total_attendance", "win", "lose", "slot_win", "slot_lose"]
+    for field in int_fields:
+        try:
+            user[field] = int(user.get(field, 0))
+        except (TypeError, ValueError):
+            user[field] = 0
 
-    if "active_effects" not in user or not isinstance(user["active_effects"], dict):
+        if user[field] < 0:
+            user[field] = 0
+
+    if not isinstance(user["inventory"], list):
+        user["inventory"] = []
+
+    if not isinstance(user["active_effects"], dict):
         user["active_effects"] = {}
 
-    user["active_effects"].setdefault("luck", 0)
-    user["active_effects"].setdefault("title_ticket", 0)
-    user["active_effects"].setdefault("nickname_change", 0)
-
-    if user["money"] < 0:
-        user["money"] = 0
-    if user["win"] < 0:
-        user["win"] = 0
-    if user["lose"] < 0:
-        user["lose"] = 0
-    if user["slot_win"] < 0:
-        user["slot_win"] = 0
-    if user["slot_lose"] < 0:
-        user["slot_lose"] = 0
-    if user["streak"] < 0:
-        user["streak"] = 0
-    if user["total_attendance"] < 0:
-        user["total_attendance"] = 0
-
     return user
-
-
-def roll_slot(luck_active: bool):
-    """
-    기본:
-    - 5칸 전부 랜덤
-    - 5개 전부 동일하면 당첨
-
-    행운권 적용:
-    - 특정 심볼로 약간 몰리게 해서 잭팟 확률만 소폭 상승
-    - 경제 밸런스를 위해 과한 버프는 피함
-    """
-    if not luck_active:
-        result = [random.choice(SLOT_SYMBOLS) for _ in range(5)]
-        is_jackpot = len(set(result)) == 1
-        return result, is_jackpot
-
-    target_symbol = random.choice(SLOT_SYMBOLS)
-    result = []
-
-    for _ in range(5):
-        # 안정 버전:
-        # 20% 확률로 target_symbol 고정
-        # 나머지 80%는 전체 랜덤
-        # 최종적으로 target_symbol이 나올 확률이 약 36% 수준
-        if random.random() < 0.20:
-            result.append(target_symbol)
-        else:
-            result.append(random.choice(SLOT_SYMBOLS))
-
-    is_jackpot = len(set(result)) == 1
-    return result, is_jackpot
 
 
 class Gamble(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="도박", description="재화를 걸고 도박합니다.")
-    @app_commands.checks.cooldown(1, 5.0)
-    async def gamble(self, interaction: discord.Interaction, 금액: int):
+    async def interaction_check(self, interaction):
         if interaction.guild is None:
             await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
+                "❌ 서버에서만 사용할 수 있어요.",
                 ephemeral=True
             )
-            return
+            return False
 
         if interaction.user.bot:
             await interaction.response.send_message(
-                "봇 계정은 사용할 수 없어요.",
+                "❌ 봇은 사용할 수 없어요.",
                 ephemeral=True
             )
-            return
+            return False
 
-        if 금액 < MIN_BET:
-            await interaction.response.send_message(
-                f"최소 배팅 금액은 `{MIN_BET}`코인이에요.",
-                ephemeral=True
+        return True
+
+    def build_result_embed(self, user, before, after, win, all_in=False):
+        mode = "올인" if all_in else "도박"
+
+        if win:
+            embed = discord.Embed(
+                title="🎉 승리",
+                description=f"```fix\n{before:,} → {after:,}\n```",
+                color=discord.Color.green()
             )
-            return
-
-        if 금액 > MAX_BET:
-            await interaction.response.send_message(
-                f"최대 배팅 금액은 `{MAX_BET}`코인이에요.",
-                ephemeral=True
-            )
-            return
-
-        data = load_data()
-        user = get_user_data(data, interaction.user.id)
-
-        if user["money"] < 금액:
-            await interaction.response.send_message(
-                f"보유 재화가 부족해요.\n현재 보유 재화: `{user['money']} 코인`",
-                ephemeral=True
-            )
-            return
-
-        active_effects = user.get("active_effects", {})
-        luck_active = active_effects.get("luck", 0) > 0
-
-        win_chance = BASE_WIN_CHANCE
-        if luck_active:
-            win_chance += LUCK_BONUS_CHANCE
-
-        is_win = random.random() < win_chance
-
-        if luck_active:
-            active_effects["luck"] = 0
-
-        if is_win:
-            user["money"] += 금액
-            user["win"] += 1
-            result_text = "승리"
-            reward_text = f"+{금액} 코인"
-            color = discord.Color.green()
         else:
-            user["money"] -= 금액
-            user["lose"] += 1
+            embed = discord.Embed(
+                title="😢 패배",
+                description=f"```fix\n{before:,} → {after:,}\n```",
+                color=discord.Color.red()
+            )
 
-            if user["money"] < 0:
-                user["money"] = 0
-
-            result_text = "패배"
-            reward_text = f"-{금액} 코인"
-            color = discord.Color.red()
-
-        save_data(data)
-
-        bonus_text = "🍀 행운권 발동! 승률 +5%" if luck_active else "없음"
-
-        embed = discord.Embed(
-            title=f"🎲 도박 {result_text}",
-            description=(
-                f"{interaction.user.mention}님이 `{금액} 코인`을 걸었어요.\n\n"
-                f"결과: `{result_text}`\n"
-                f"변동 재화: `{reward_text}`\n"
-                f"적용 확률: `{int(win_chance * 100)}%`\n"
-                f"행운 효과: `{bonus_text}`\n\n"
-                f"현재 보유 재화: `{user['money']} 코인`\n"
-                f"전적: `{user['win']}승 / {user['lose']}패`"
-            ),
-            color=color
+        embed.set_author(
+            name=user.display_name,
+            icon_url=user.display_avatar.url
         )
-        await interaction.response.send_message(embed=embed)
+        embed.set_footer(text=f"Dimo Casino 🎰 · {mode}")
+        return embed
 
-    @app_commands.command(name="올인", description="현재 보유한 재화를 모두 걸고 도박합니다.")
-    @app_commands.checks.cooldown(1, 5.0)
-    async def all_in(self, interaction: discord.Interaction):
-        if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
+    async def roll_animation(self, interaction, name, mode, probability):
+        revealed = []
+        success_count = 0
+
+        for i in range(9):
+            face = "●" if random.random() < probability else "○"
+
+            if face == "●":
+                success_count += 1
+
+            revealed.append(face)
+            frame = "✦ " + " ".join(revealed + ["·"] * (9 - len(revealed))) + " ✦"
+
+            embed = discord.Embed(
+                title=f"🪙 {name}님의 코인 토스",
+                description=frame,
+                color=discord.Color.blurple()
             )
-            return
-
-        if interaction.user.bot:
-            await interaction.response.send_message(
-                "봇 계정은 사용할 수 없어요.",
-                ephemeral=True
-            )
-            return
-
-        data = load_data()
-        user = get_user_data(data, interaction.user.id)
-
-        money = user["money"]
-
-        if money < MIN_BET:
-            await interaction.response.send_message(
-                f"올인을 하려면 최소 `{MIN_BET}`코인 이상 보유하고 있어야 해요.",
-                ephemeral=True
-            )
-            return
-
-        bet_amount = min(money, MAX_BET)
-
-        active_effects = user.get("active_effects", {})
-        luck_active = active_effects.get("luck", 0) > 0
-
-        win_chance = BASE_WIN_CHANCE
-        if luck_active:
-            win_chance += LUCK_BONUS_CHANCE
-
-        is_win = random.random() < win_chance
-
-        if luck_active:
-            active_effects["luck"] = 0
-
-        if is_win:
-            user["money"] += bet_amount
-            user["win"] += 1
-            result_text = "승리"
-            reward_text = f"+{bet_amount} 코인"
-            color = discord.Color.green()
-        else:
-            user["money"] -= bet_amount
-            user["lose"] += 1
-
-            if user["money"] < 0:
-                user["money"] = 0
-
-            result_text = "패배"
-            reward_text = f"-{bet_amount} 코인"
-            color = discord.Color.red()
-
-        save_data(data)
-
-        bonus_text = "🍀 행운권 발동! 승률 +5%" if luck_active else "없음"
-
-        embed = discord.Embed(
-            title=f"💥 올인 {result_text}",
-            description=(
-                f"{interaction.user.mention}님이 `{bet_amount} 코인`으로 올인했어요.\n\n"
-                f"결과: `{result_text}`\n"
-                f"변동 재화: `{reward_text}`\n"
-                f"적용 확률: `{int(win_chance * 100)}%`\n"
-                f"행운 효과: `{bonus_text}`\n\n"
-                f"현재 보유 재화: `{user['money']} 코인`\n"
-                f"전적: `{user['win']}승 / {user['lose']}패`"
-            ),
-            color=color
-        )
-        await interaction.response.send_message(embed=embed)
-
-    @app_commands.command(name="슬롯", description="하드모드 슬롯을 돌립니다. 5개 전부 같아야 100배 지급!")
-    @app_commands.checks.cooldown(1, 5.0)
-    async def slot(self, interaction: discord.Interaction, 금액: int):
-        if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
-            return
-
-        if interaction.user.bot:
-            await interaction.response.send_message(
-                "봇 계정은 사용할 수 없어요.",
-                ephemeral=True
-            )
-            return
-
-        if 금액 < MIN_BET:
-            await interaction.response.send_message(
-                f"최소 배팅 금액은 `{MIN_BET}`코인이에요.",
-                ephemeral=True
-            )
-            return
-
-        if 금액 > MAX_BET:
-            await interaction.response.send_message(
-                f"최대 배팅 금액은 `{MAX_BET}`코인이에요.",
-                ephemeral=True
-            )
-            return
-
-        data = load_data()
-        user = get_user_data(data, interaction.user.id)
-
-        if user["money"] < 금액:
-            await interaction.response.send_message(
-                f"보유 재화가 부족해요.\n현재 보유 재화: `{user['money']} 코인`",
-                ephemeral=True
-            )
-            return
-
-        active_effects = user.get("active_effects", {})
-        luck_active = active_effects.get("luck", 0) > 0
-
-        result, is_jackpot = roll_slot(luck_active)
-
-        if luck_active:
-            active_effects["luck"] = 0
-
-        slot_line = " │ ".join(result)
-
-        if is_jackpot:
-            reward = 금액 * SLOT_REWARD_MULTIPLIER
-            user["money"] += reward
-            user["slot_win"] += 1
-
-            result_text = "🎉 JACKPOT 🎉"
-            reward_text = f"+{reward} 코인"
-            color = discord.Color.gold()
-        else:
-            user["money"] -= 금액
-            user["slot_lose"] += 1
-
-            if user["money"] < 0:
-                user["money"] = 0
-
-            result_text = "실패"
-            reward_text = f"-{금액} 코인"
-            color = discord.Color.red()
-
-        save_data(data)
-
-        bonus_text = "🍀 행운권 발동! 슬롯 확률 증가" if luck_active else "없음"
-        slot_effect_text = "🍀 행운이 슬롯을 감쌉니다!\n\n" if luck_active else ""
-        jackpot_text = "💰 100배 당첨!\n\n" if is_jackpot else ""
-
-        embed = discord.Embed(
-            title=f"🎰 슬롯 {result_text}",
-            description=(
-                f"{interaction.user.mention}님이 `{금액} 코인`을 걸고 슬롯을 돌렸어요.\n\n"
-                f"{slot_effect_text}"
-                f"`{slot_line}`\n\n"
-                f"{jackpot_text}"
-                f"결과: `{result_text}`\n"
-                f"변동 재화: `{reward_text}`\n"
-                f"행운 효과: `{bonus_text}`\n\n"
-                f"현재 보유 재화: `{user['money']} 코인`\n"
-                f"슬롯 전적: `{user['slot_win']}승 / {user['slot_lose']}패`\n"
-                f"규칙: `5개 전부 동일 시 {SLOT_REWARD_MULTIPLIER}배 지급`"
-            ),
-            color=color
-        )
-        await interaction.response.send_message(embed=embed)
-
-    @app_commands.command(name="도박랭킹", description="도박 승수를 기준으로 랭킹을 확인합니다.")
-    async def gamble_ranking(self, interaction: discord.Interaction):
-        if interaction.guild is None:
-            await interaction.response.send_message(
-                "이 명령어는 서버에서만 사용할 수 있어요.",
-                ephemeral=True
-            )
-            return
-
-        if interaction.user.bot:
-            await interaction.response.send_message(
-                "봇 계정은 사용할 수 없어요.",
-                ephemeral=True
-            )
-            return
-
-        data = load_data()
-        users = data.get("users", {})
-        ranking = []
-
-        for user_id, info in users.items():
-            if not isinstance(info, dict):
-                continue
+            embed.set_footer(text=f"Dimo Casino 🎰 · {mode}")
 
             try:
-                member = interaction.guild.get_member(int(user_id))
-            except ValueError:
-                continue
+                await interaction.edit_original_response(embed=embed)
+            except discord.HTTPException:
+                break
 
-            if member is None or member.bot:
-                continue
+            if i == 7:
+                heads = revealed.count("●")
+                tails = revealed.count("○")
 
-            win = info.get("win", 0)
-            lose = info.get("lose", 0)
+                if heads == 4 and tails == 4:
+                    await asyncio.sleep(FINAL_DELAY)
+                else:
+                    await asyncio.sleep(NORMAL_DELAY)
+            elif i < 8:
+                await asyncio.sleep(NORMAL_DELAY)
 
-            if not isinstance(win, int):
-                win = 0
-            if not isinstance(lose, int):
-                lose = 0
+        win = success_count >= 5
+        return win
 
-            ranking.append((member, win, lose))
+    async def process_gamble(self, interaction, amount, all_in=False):
+        data = load_data()
+        user = ensure_user(data, interaction.user.id)
 
-        ranking.sort(key=lambda x: x[1], reverse=True)
-        top_10 = ranking[:10]
-
-        if not top_10:
+        if amount < MIN_BET:
             await interaction.response.send_message(
-                "아직 도박 데이터가 없어요.",
+                f"❌ 최소 베팅은 {MIN_BET:,} 코인이에요.",
                 ephemeral=True
             )
             return
 
-        medals = ["🥇", "🥈", "🥉"]
-        lines = []
+        if amount > MAX_BET:
+            await interaction.response.send_message(
+                f"❌ 최대 베팅은 {MAX_BET:,} 코인이에요.",
+                ephemeral=True
+            )
+            return
 
-        for idx, (member, win, lose) in enumerate(top_10, start=1):
-            prefix = medals[idx - 1] if idx <= 3 else f"{idx}위"
-            lines.append(f"{prefix} {member.display_name} - `{win}승 / {lose}패`")
+        if user["money"] < amount:
+            await interaction.response.send_message(
+                f"❌ 코인이 부족해요.\n현재: {user['money']:,}",
+                ephemeral=True
+            )
+            return
 
-        embed = discord.Embed(
-            title="🎲 도박 랭킹 TOP 10",
-            description="\n".join(lines),
-            color=discord.Color.gold()
+        before = user["money"]
+        name = interaction.user.display_name
+        mode = "올인" if all_in else "도박"
+
+        luck_bonus = 0
+        if isinstance(user.get("active_effects"), dict):
+            luck_bonus = user["active_effects"].get("luck", 0)
+
+        try:
+            luck_bonus = float(luck_bonus)
+        except (TypeError, ValueError):
+            luck_bonus = 0
+
+        probability = min(max(BASE_PROBABILITY + luck_bonus, 0.0), 1.0)
+
+        start_embed = discord.Embed(
+            title=f"🪙 {name}님의 코인 토스",
+            description="✦ · · · · · · · · · ✦",
+            color=discord.Color.blurple()
         )
-        await interaction.response.send_message(embed=embed)
+
+        if luck_bonus > 0:
+            percent = int(luck_bonus * 100)
+            start_embed.add_field(
+                name="✨ 적용 효과",
+                value=f"확률 증가 +{percent}%",
+                inline=False
+            )
+
+        start_embed.set_footer(text=f"Dimo Casino 🎰 · {mode}")
+
+        await interaction.response.send_message(embed=start_embed)
+
+        win = await self.roll_animation(interaction, name, mode, probability)
+
+        if win:
+            user["money"] += amount
+        else:
+            user["money"] -= amount
+
+        if user["money"] < 0:
+            user["money"] = 0
+
+        if isinstance(user.get("active_effects"), dict):
+            user["active_effects"].pop("luck", None)
+
+        save_data(data)
+
+        result = self.build_result_embed(
+            interaction.user,
+            before,
+            user["money"],
+            win,
+            all_in
+        )
+
+        try:
+            await interaction.edit_original_response(embed=result)
+        except discord.HTTPException:
+            if interaction.response.is_done():
+                await interaction.followup.send(embed=result)
+
+    @app_commands.command(name="도박", description="코인을 걸고 승부해요.")
+    @app_commands.describe(금액="베팅 금액")
+    @app_commands.checks.cooldown(1, COOLDOWN)
+    async def gamble(self, interaction, 금액: int):
+        await self.process_gamble(interaction, 금액, all_in=False)
+
+    @app_commands.command(name="올인", description="코인을 전부 걸어요.")
+    @app_commands.checks.cooldown(1, COOLDOWN)
+    async def all_in(self, interaction):
+        data = load_data()
+        user = ensure_user(data, interaction.user.id)
+
+        if user["money"] < MIN_BET:
+            await interaction.response.send_message(
+                "❌ 올인을 하려면 최소 코인이 필요해요.",
+                ephemeral=True
+            )
+            return
+
+        amount = min(user["money"], MAX_BET)
+        await self.process_gamble(interaction, amount, all_in=True)
+
+    async def handle_error(self, interaction, error):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            message = f"⏳ 잠시 후 다시 시도해주세요. ({error.retry_after:.1f}초)"
+            if interaction.response.is_done():
+                await interaction.followup.send(message, ephemeral=True)
+            else:
+                await interaction.response.send_message(message, ephemeral=True)
+            return
+
+        if isinstance(error, app_commands.CheckFailure):
+            return
+
+        message = "❌ 도박을 처리하는 중 문제가 생겼어요."
+        if interaction.response.is_done():
+            await interaction.followup.send(message, ephemeral=True)
+        else:
+            await interaction.response.send_message(message, ephemeral=True)
+
+    @gamble.error
+    async def gamble_error(self, interaction, error):
+        await self.handle_error(interaction, error)
+
+    @all_in.error
+    async def all_in_error(self, interaction, error):
+        await self.handle_error(interaction, error)
 
 
 async def setup(bot):

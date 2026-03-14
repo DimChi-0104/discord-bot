@@ -161,6 +161,60 @@
             "action": "설정",
             "amount": 200000,
             "time": "2026-03-08 13:45:15"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 10000000,
+            "time": "2026-03-09 08:40:12"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "설정",
+            "amount": 31400,
+            "time": "2026-03-09 11:52:56"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "설정",
+            "amount": 314,
+            "time": "2026-03-09 11:54:28"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 1357956297835806770,
+            "target_name": "𝓦𝓱𝓸",
+            "action": "지급",
+            "amount": 20000,
+            "time": "2026-03-09 22:03:38"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 1091001261870034984,
+            "target_name": "☆♡D_B♤♧(디브)",
+            "action": "지급",
+            "amount": 6974,
+            "time": "2026-03-09 22:18:54"
+        },
+        {
+            "admin_id": 662509817234980895,
+            "admin_name": "DimChi",
+            "target_id": 662509817234980895,
+            "target_name": "DimChi",
+            "action": "지급",
+            "amount": 1000,
+            "time": "2026-03-09 22:20:18"
         }
     ]
 }

@@ -1,16 +1,16 @@
 {
     "users": {
         "662509817234980895": {
-            "money": 99981,
-            "last_attendance": "2026-03-08",
-            "streak": 2,
-            "total_attendance": 2,
-            "win": 5,
-            "lose": 6,
+            "money": 5990,
+            "last_attendance": "2026-03-14 09:52:56",
+            "streak": 8,
+            "total_attendance": 8,
+            "win": 11,
+            "lose": 19,
             "slot_win": 0,
-            "slot_lose": 1,
+            "slot_lose": 3,
             "inventory": {
-                "출석보너스권": 11
+                "출석보너스권": 5
             },
             "active_effects": {
                 "luck": 0,
@@ -22,9 +22,9 @@
             "titles": [
                 {
                     "id": 1,
-                    "name": "테스트용",
+                    "name": "0",
                     "color": "#FFD700",
-                    "level": 3,
+                    "level": 1,
                     "equipped": true
                 }
             ],
@@ -32,31 +32,44 @@
                 "name": "",
                 "color": "#FFFFFF"
             },
-            "last_work": "2026-03-08 14:15:10",
+            "last_work": "2026-03-15 00:24:20",
             "properties": {
-                "원룸": 1,
+                "원룸": 0,
                 "상가": 0,
                 "빌딩": 0
             },
-            "last_rent": ""
+            "last_rent": "2026-03-09 07:59:56"
         },
         "488115689744498720": {
-            "money": 176,
-            "last_attendance": "2026-03-08 01:53:22",
-            "streak": 2,
-            "total_attendance": 2,
-            "win": 1,
-            "lose": 3,
+            "money": 559,
+            "last_attendance": "2026-03-14 09:47:54",
+            "streak": 7,
+            "total_attendance": 7,
+            "win": 11,
+            "lose": 20,
             "slot_win": 0,
-            "slot_lose": 0
+            "slot_lose": 0,
+            "last_work": "2026-03-15 02:40:25",
+            "inventory": {},
+            "titles": [],
+            "active_effects": {
+                "luck": 0,
+                "title_create": 0,
+                "nickname_change": 0,
+                "title_ticket": 0
+            },
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            }
         },
         "1022479187623301140": {
-            "money": 148022,
-            "last_attendance": "2026-03-08 13:26:20",
-            "streak": 2,
-            "total_attendance": 2,
-            "win": 6,
-            "lose": 4,
+            "money": 105396,
+            "last_attendance": "2026-03-14 21:23:24",
+            "streak": 1,
+            "total_attendance": 3,
+            "win": 7,
+            "lose": 6,
             "slot_win": 0,
             "slot_lose": 19,
             "inventory": {},
@@ -70,43 +83,120 @@
             "title_data": {
                 "name": "",
                 "color": "#FFFFFF"
-            }
+            },
+            "last_work": "2026-03-08 22:40:09",
+            "properties": {
+                "원룸": 1,
+                "상가": 0,
+                "빌딩": 0
+            },
+            "last_rent": "2026-03-14 21:24:35"
         },
         "1091001261870034984": {
-            "money": 1,
-            "last_attendance": "2026-03-08 08:35:50",
-            "streak": 2,
-            "total_attendance": 2,
-            "win": 0,
-            "lose": 7,
+            "money": 850,
+            "last_attendance": "2026-03-14 09:13:12",
+            "streak": 7,
+            "total_attendance": 7,
+            "win": 18,
+            "lose": 21,
             "slot_win": 0,
-            "slot_lose": 0
+            "slot_lose": 25,
+            "last_work": "2026-03-14 23:34:41",
+            "inventory": {
+                "출석보너스권": 2
+            },
+            "titles": [],
+            "active_effects": {
+                "luck": 0,
+                "title_create": 0,
+                "nickname_change": 0,
+                "title_ticket": 0
+            },
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            },
+            "properties": {
+                "원룸": 1,
+                "상가": 0,
+                "빌딩": 0
+            },
+            "last_rent": "2026-03-14 17:40:14"
         },
         "600641724116631553": {
-            "money": 432,
-            "last_attendance": "2026-03-07",
-            "streak": 1,
-            "total_attendance": 1,
-            "win": 0,
-            "lose": 1
-        },
-        "1014544264723705867": {
-            "money": 243,
-            "last_attendance": "2026-03-08 08:22:22",
+            "money": 0,
+            "last_attendance": "2026-03-08 21:24:05",
             "streak": 2,
             "total_attendance": 2,
-            "win": 1,
-            "lose": 7,
+            "win": 0,
+            "lose": 2,
             "slot_win": 0,
-            "slot_lose": 0
+            "slot_lose": 0,
+            "inventory": {},
+            "active_effects": {
+                "luck": 0,
+                "title_ticket": 0,
+                "nickname_change": 0,
+                "title_create": 0
+            },
+            "last_work": "2026-03-14 19:40:38",
+            "titles": [],
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            }
+        },
+        "1014544264723705867": {
+            "money": 17670,
+            "last_attendance": "2026-03-13 09:05:22",
+            "streak": 5,
+            "total_attendance": 5,
+            "win": 5,
+            "lose": 15,
+            "slot_win": 0,
+            "slot_lose": 0,
+            "last_work": "2026-03-15 00:08:34",
+            "inventory": {},
+            "titles": [],
+            "active_effects": {
+                "luck": 0,
+                "title_create": 0,
+                "nickname_change": 0,
+                "title_ticket": 0
+            },
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            }
         },
         "845885046656860212": {
-            "money": 52000,
-            "last_attendance": "2026-03-08",
-            "streak": 1,
-            "total_attendance": 1,
-            "win": 30,
-            "lose": 16
+            "money": 16866,
+            "last_attendance": "2026-03-14 22:38:57",
+            "streak": 7,
+            "total_attendance": 7,
+            "win": 35,
+            "lose": 28,
+            "last_work": "2026-03-15 02:05:27",
+            "slot_win": 0,
+            "slot_lose": 0,
+            "inventory": {},
+            "titles": [],
+            "active_effects": {
+                "luck": 0,
+                "title_create": 0,
+                "nickname_change": 0,
+                "title_ticket": 0
+            },
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            },
+            "properties": {
+                "원룸": 3,
+                "상가": 0,
+                "빌딩": 0
+            },
+            "last_rent": "2026-03-15 01:18:53"
         },
         "1029357060099416084": {
             "money": 30000,
@@ -117,18 +207,77 @@
             "lose": 0
         },
         "663289490470731788": {
-            "money": 0,
-            "last_attendance": "2026-03-08 04:51:52",
-            "streak": 1,
-            "total_attendance": 1,
+            "money": 9647,
+            "last_attendance": "2026-03-14 15:47:41",
+            "streak": 6,
+            "total_attendance": 6,
             "win": 0,
             "lose": 1,
             "slot_win": 0,
-            "slot_lose": 0
+            "slot_lose": 0,
+            "inventory": {},
+            "active_effects": {
+                "luck": 0,
+                "title_ticket": 0,
+                "nickname_change": 0,
+                "title_create": 0
+            },
+            "last_work": "2026-03-14 23:06:24",
+            "titles": [],
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            }
         },
         "1352556869771853894": {
-            "money": 202,
-            "last_attendance": "2026-03-08 13:41:15",
+            "money": 0,
+            "last_attendance": "2026-03-10 18:59:17",
+            "streak": 3,
+            "total_attendance": 3,
+            "win": 2,
+            "lose": 7,
+            "slot_win": 0,
+            "slot_lose": 0,
+            "inventory": {},
+            "active_effects": {
+                "luck": 0,
+                "title_ticket": 0,
+                "nickname_change": 0,
+                "title_create": 0
+            },
+            "last_work": "2026-03-14 23:53:11",
+            "titles": [],
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            }
+        },
+        "503085914139000833": {
+            "money": 2260,
+            "last_attendance": "2026-03-14 21:25:24",
+            "streak": 4,
+            "total_attendance": 5,
+            "win": 3,
+            "lose": 4,
+            "slot_win": 0,
+            "slot_lose": 0,
+            "inventory": {},
+            "active_effects": {
+                "luck": 0,
+                "title_ticket": 0,
+                "nickname_change": 0,
+                "title_create": 0
+            },
+            "last_work": "2026-03-14 22:18:05",
+            "titles": [],
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
+            }
+        },
+        "397281902077149186": {
+            "money": 272,
+            "last_attendance": "2026-03-08 17:50:02",
             "streak": 1,
             "total_attendance": 1,
             "win": 0,
@@ -142,20 +291,27 @@
                 "nickname_change": 0
             }
         },
-        "503085914139000833": {
-            "money": 112,
-            "last_attendance": "2026-03-08 13:56:55",
-            "streak": 1,
-            "total_attendance": 1,
-            "win": 0,
-            "lose": 0,
+        "1357956297835806770": {
+            "money": 1377,
+            "last_attendance": "",
+            "streak": 0,
+            "total_attendance": 0,
+            "win": 15,
+            "lose": 10,
             "slot_win": 0,
             "slot_lose": 0,
             "inventory": {},
             "active_effects": {
                 "luck": 0,
                 "title_ticket": 0,
-                "nickname_change": 0
+                "nickname_change": 0,
+                "title_create": 0
+            },
+            "last_work": "2026-03-15 02:10:38",
+            "titles": [],
+            "title_data": {
+                "name": "",
+                "color": "#FFFFFF"
             }
         }
     },
@@ -163,8 +319,8 @@
         "season": "2026-03",
         "users": {
             "662509817234980895": {
-                "best_level": 3,
-                "title_name": "테스트용"
+                "best_level": 1,
+                "title_name": "0"
             }
         }
     }

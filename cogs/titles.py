@@ -1,654 +1,538 @@
+import json
+import os
+
 import discord
 from discord import app_commands
 from discord.ext import commands
-import json
-import os
-from datetime import datetime, timedelta, timezone
 
-DATA_FILE = "data/economy.json"
-KST = timezone(timedelta(hours=9))
-
-MAX_TITLE_LEVEL = 10
-RANKING_TOP_LIMIT = 10
+ECONOMY_FILE = "data/economy.json"
 
 
-def load_data():
+def ensure_data_dir():
     os.makedirs("data", exist_ok=True)
 
-    if not os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump({"users": {}, "title_ranking": {"season": "", "users": {}}}, f, ensure_ascii=False, indent=4)
-        return {"users": {}, "title_ranking": {"season": "", "users": {}}}
+
+def load_economy():
+    ensure_data_dir()
+
+    if not os.path.exists(ECONOMY_FILE):
+        with open(ECONOMY_FILE, "w", encoding="utf-8") as f:
+            json.dump({"users": {}}, f, ensure_ascii=False, indent=4)
+        return {"users": {}}
 
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
+        with open(ECONOMY_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         if not isinstance(data, dict):
-            data = {"users": {}, "title_ranking": {"season": "", "users": {}}}
+            data = {"users": {}}
 
         if "users" not in data or not isinstance(data["users"], dict):
             data["users"] = {}
 
-        if "title_ranking" not in data or not isinstance(data["title_ranking"], dict):
-            data["title_ranking"] = {"season": "", "users": {}}
-
-        data["title_ranking"].setdefault("season", "")
-        if not isinstance(data["title_ranking"]["season"], str):
-            data["title_ranking"]["season"] = ""
-
-        data["title_ranking"].setdefault("users", {})
-        if not isinstance(data["title_ranking"]["users"], dict):
-            data["title_ranking"]["users"] = {}
-
         return data
 
     except (json.JSONDecodeError, OSError):
-        fallback = {"users": {}, "title_ranking": {"season": "", "users": {}}}
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(fallback, f, ensure_ascii=False, indent=4)
-        return fallback
+        with open(ECONOMY_FILE, "w", encoding="utf-8") as f:
+            json.dump({"users": {}}, f, ensure_ascii=False, indent=4)
+        return {"users": {}}
 
 
-def save_data(data):
-    os.makedirs("data", exist_ok=True)
-
-    if not isinstance(data, dict):
-        data = {"users": {}, "title_ranking": {"season": "", "users": {}}}
-
-    if "users" not in data or not isinstance(data["users"], dict):
-        data["users"] = {}
-
-    if "title_ranking" not in data or not isinstance(data["title_ranking"], dict):
-        data["title_ranking"] = {"season": "", "users": {}}
-
-    data["title_ranking"].setdefault("season", "")
-    if not isinstance(data["title_ranking"]["season"], str):
-        data["title_ranking"]["season"] = ""
-
-    data["title_ranking"].setdefault("users", {})
-    if not isinstance(data["title_ranking"]["users"], dict):
-        data["title_ranking"]["users"] = {}
-
-    temp_file = DATA_FILE + ".tmp"
-    with open(temp_file, "w", encoding="utf-8") as f:
+def save_economy(data):
+    ensure_data_dir()
+    with open(ECONOMY_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-    os.replace(temp_file, DATA_FILE)
 
-
-def normalize_hex_color(value: str) -> str | None:
-    if not isinstance(value, str):
-        return None
-
-    value = value.strip().upper()
-    if not value.startswith("#"):
-        value = f"#{value}"
-
-    if len(value) != 7:
-        return None
-
-    allowed = "0123456789ABCDEF"
-    if all(ch in allowed for ch in value[1:]):
-        return value
-
-    return None
-
-
-def parse_embed_color(hex_color: str) -> discord.Color:
-    if not isinstance(hex_color, str):
-        return discord.Color.blurple()
-
-    value = hex_color.strip().upper()
-    if value.startswith("#"):
-        value = value[1:]
-
-    if len(value) != 6:
-        return discord.Color.blurple()
-
-    try:
-        return discord.Color(int(value, 16))
-    except ValueError:
-        return discord.Color.blurple()
-
-
-def get_current_season() -> str:
-    return datetime.now(KST).strftime("%Y-%m")
-
-
-def get_next_title_id(titles: list) -> int:
-    max_id = 0
-    for title in titles:
-        if isinstance(title, dict):
-            title_id = title.get("id", 0)
-            if isinstance(title_id, int) and title_id > max_id:
-                max_id = title_id
-    return max_id + 1
-
-
-def migrate_legacy_title(user: dict):
-    titles = user.get("titles", [])
-    if not isinstance(titles, list):
-        user["titles"] = []
-        titles = user["titles"]
-
-    title_data = user.get("title_data", {})
-    if not isinstance(title_data, dict):
-        return
-
-    legacy_name = str(title_data.get("name", "")).strip()
-    legacy_color = str(title_data.get("color", "#FFFFFF")).strip()
-
-    if legacy_name and not titles:
-        color = normalize_hex_color(legacy_color) or "#FFFFFF"
-        titles.append({
-            "id": 1,
-            "name": legacy_name,
-            "color": color,
-            "level": 1,
-            "equipped": True
-        })
-
-
-def get_user_data(data, user_id: int):
-    user_id = str(user_id)
-
-    if user_id not in data["users"] or not isinstance(data["users"][user_id], dict):
-        data["users"][user_id] = {}
-
-    user = data["users"][user_id]
-
-    defaults = {
-        "money": 0,
-        "last_attendance": "",
-        "streak": 0,
-        "total_attendance": 0,
-        "win": 0,
-        "lose": 0,
-        "slot_win": 0,
-        "slot_lose": 0,
-        "inventory": {},
-        "titles": [],
-        "active_effects": {
-            "luck": 0,
-            "title_create": 0,
-            "nickname_change": 0
-        },
-        "title_data": {
-            "name": "",
-            "color": "#FFFFFF"
+def ensure_user(data: dict, user_id: str):
+    if user_id not in data["users"]:
+        data["users"][user_id] = {
+            "money": 0,
+            "last_attendance": "",
+            "streak": 0,
+            "total_attendance": 0,
+            "win": 0,
+            "lose": 0,
+            "inventory": {},
+            "active_effects": {},
+            "titles": [],
+            "equipped_title": "",
+            "base_nickname": ""
         }
+
+    user_data = data["users"][user_id]
+
+    if "money" not in user_data:
+        user_data["money"] = 0
+    if "inventory" not in user_data or not isinstance(user_data["inventory"], dict):
+        user_data["inventory"] = {}
+    if "active_effects" not in user_data or not isinstance(user_data["active_effects"], dict):
+        user_data["active_effects"] = {}
+    if "titles" not in user_data or not isinstance(user_data["titles"], list):
+        user_data["titles"] = []
+    if "equipped_title" not in user_data:
+        user_data["equipped_title"] = ""
+    if "base_nickname" not in user_data:
+        user_data["base_nickname"] = ""
+
+    return user_data
+
+
+def normalize_title_entry(title_entry):
+    if isinstance(title_entry, dict):
+        return {
+            "name": str(title_entry.get("name", "이름 없음")),
+            "level": int(title_entry.get("level", 0)),
+            "bonus_type": title_entry.get("bonus_type"),
+            "bonus_value": int(title_entry.get("bonus_value", 0)),
+            "role_id": title_entry.get("role_id"),
+            "color": str(title_entry.get("color", "#000000"))
+        }
+
+    return {
+        "name": str(title_entry),
+        "level": 0,
+        "bonus_type": None,
+        "bonus_value": 0,
+        "role_id": None,
+        "color": "#000000"
     }
 
-    for key, value in defaults.items():
-        if key not in user or not isinstance(user[key], type(value)):
-            user[key] = value
 
-    if "inventory" not in user or not isinstance(user["inventory"], dict):
-        user["inventory"] = {}
+def parse_hex_color(color_text: str) -> discord.Color:
+    raw = str(color_text).strip().replace("#", "").upper()
 
-    if "titles" not in user or not isinstance(user["titles"], list):
-        user["titles"] = []
+    if len(raw) != 6:
+        return discord.Color.default()
 
-    if "active_effects" not in user or not isinstance(user["active_effects"], dict):
-        user["active_effects"] = {}
-
-    user["active_effects"].setdefault("luck", 0)
-    user["active_effects"].setdefault("title_create", 0)
-    user["active_effects"].setdefault("nickname_change", 0)
-
-    if "title_data" not in user or not isinstance(user["title_data"], dict):
-        user["title_data"] = {"name": "", "color": "#FFFFFF"}
-
-    user["title_data"].setdefault("name", "")
-    user["title_data"].setdefault("color", "#FFFFFF")
-
-    migrate_legacy_title(user)
-
-    if user["money"] < 0:
-        user["money"] = 0
-
-    return user
+    try:
+        return discord.Color(int(raw, 16))
+    except ValueError:
+        return discord.Color.default()
 
 
-def get_upgrade_cost(level: int) -> int:
-    return 5000 * (2 ** max(0, level - 1))
+def get_title_list_text(user_data: dict) -> str:
+    titles = user_data.get("titles", [])
+    equipped_title = str(user_data.get("equipped_title", "")).strip()
+
+    if not titles:
+        return "보유 중인 칭호가 없어요."
+
+    lines = []
+    for idx, raw_title in enumerate(titles, start=1):
+        title = normalize_title_entry(raw_title)
+        title_name = title["name"]
+        title_level = title["level"]
+        color_text = title.get("color", "#000000")
+        role_id = title.get("role_id")
+
+        prefix = "✅ " if equipped_title == title_name else ""
+        level_text = f" (+{title_level})" if title_level > 0 else ""
+        role_text = " | 역할 연동" if role_id else ""
+
+        lines.append(f"{prefix}{idx}. {title_name}{level_text} | 색상: {color_text}{role_text}")
+
+    return "\n".join(lines)
 
 
-def find_title_by_id(titles: list, title_id: int):
-    for title in titles:
-        if isinstance(title, dict) and title.get("id") == title_id:
-            return title
-    return None
+def find_title_by_index(user_data: dict, index: int):
+    titles = user_data.get("titles", [])
+
+    if index < 1 or index > len(titles):
+        return None, None, None
+
+    raw_title = titles[index - 1]
+    normalized = normalize_title_entry(raw_title)
+    return titles, raw_title, normalized
 
 
-def get_equipped_title(user: dict):
-    titles = user.get("titles", [])
-    if not isinstance(titles, list):
-        return None
+async def ensure_title_role(
+    guild: discord.Guild,
+    member: discord.Member,
+    titles_list: list,
+    raw_title_entry,
+    normalized_title: dict
+):
+    """
+    반환값:
+    {
+        "role": discord.Role | None,
+        "created": bool,
+        "granted": bool,
+        "status_text": str
+    }
+    """
+    title_name = normalized_title["name"]
+    stored_role_id = normalized_title.get("role_id")
+    color_text = normalized_title.get("color", "#000000")
 
-    for title in titles:
-        if isinstance(title, dict) and title.get("equipped", False):
-            return title
-    return None
+    role = guild.get_role(stored_role_id) if isinstance(stored_role_id, int) else None
+    created = False
+    granted = False
+
+    # role_id가 있는데 서버에서 역할이 삭제된 경우 같은 이름 역할 탐색
+    if role is None:
+        role = discord.utils.get(guild.roles, name=title_name)
+
+        # 이름 역할도 없으면 새로 생성
+        if role is None:
+            try:
+                role = await guild.create_role(
+                    name=title_name,
+                    colour=parse_hex_color(color_text),
+                    reason=f"Dimo 칭호 역할 복구 - {member}"
+                )
+                created = True
+            except discord.Forbidden:
+                return {
+                    "role": None,
+                    "created": False,
+                    "granted": False,
+                    "status_text": "역할을 다시 만들 권한이 없어요."
+                }
+            except discord.HTTPException:
+                return {
+                    "role": None,
+                    "created": False,
+                    "granted": False,
+                    "status_text": "역할 복구 중 오류가 발생했어요."
+                }
+
+        # 찾았거나 새로 만든 역할의 ID를 저장 데이터에 반영
+        if isinstance(raw_title_entry, dict):
+            raw_title_entry["role_id"] = role.id
+
+    # 현재 장착하려는 칭호 역할이 멤버에게 없으면 다시 지급
+    if role not in member.roles:
+        try:
+            await member.add_roles(role, reason="Dimo 칭호 역할 동기화")
+            granted = True
+        except discord.Forbidden:
+            return {
+                "role": role,
+                "created": created,
+                "granted": False,
+                "status_text": "역할은 확인됐지만 지급 권한이 없어요."
+            }
+        except discord.HTTPException:
+            return {
+                "role": role,
+                "created": created,
+                "granted": False,
+                "status_text": "역할 지급 중 오류가 발생했어요."
+            }
+
+    # 다른 칭호 역할은 제거
+    title_role_ids = set()
+    for item in titles_list:
+        title = normalize_title_entry(item)
+        role_id = title.get("role_id")
+        if isinstance(role_id, int):
+            title_role_ids.add(role_id)
+
+    removable_roles = [
+        r for r in member.roles
+        if r.id in title_role_ids and r.id != role.id
+    ]
+
+    if removable_roles:
+        try:
+            await member.remove_roles(*removable_roles, reason="Dimo 칭호 역할 교체")
+        except discord.Forbidden:
+            pass
+        except discord.HTTPException:
+            pass
+
+    if created and granted:
+        status_text = "역할을 새로 복구하고 다시 지급했어요."
+    elif created:
+        status_text = "역할을 새로 복구했어요."
+    elif granted:
+        status_text = "칭호 역할을 다시 지급했어요."
+    else:
+        status_text = "칭호 역할이 이미 정상적으로 적용되어 있었어요."
+
+    return {
+        "role": role,
+        "created": created,
+        "granted": granted,
+        "status_text": status_text
+    }
 
 
-def update_title_ranking_record(data: dict, user_id: int, title_name: str, level: int):
-    ranking = data.setdefault("title_ranking", {})
-    ranking.setdefault("season", get_current_season())
-    ranking.setdefault("users", {})
+async def remove_all_title_roles(guild: discord.Guild, member: discord.Member, user_data: dict):
+    title_role_ids = set()
 
-    user_key = str(user_id)
-    current_record = ranking["users"].get(user_key)
+    for raw_title in user_data.get("titles", []):
+        title = normalize_title_entry(raw_title)
+        role_id = title.get("role_id")
+        if isinstance(role_id, int):
+            title_role_ids.add(role_id)
 
-    if not isinstance(current_record, dict):
-        ranking["users"][user_key] = {
-            "best_level": level,
-            "title_name": title_name
-        }
-        return
+    removable_roles = [role for role in member.roles if role.id in title_role_ids]
 
-    current_best = current_record.get("best_level", 0)
-    if not isinstance(current_best, int):
-        current_best = 0
-
-    if level > current_best:
-        ranking["users"][user_key] = {
-            "best_level": level,
-            "title_name": title_name
-        }
+    if removable_roles:
+        try:
+            await member.remove_roles(*removable_roles, reason="Dimo 칭호 해제")
+        except discord.Forbidden:
+            pass
+        except discord.HTTPException:
+            pass
 
 
-async def process_monthly_title_reset(bot: commands.Bot, guild: discord.Guild, data: dict):
-    current_season = get_current_season()
-    ranking = data.setdefault("title_ranking", {"season": "", "users": {}})
-    ranking.setdefault("season", "")
-    ranking.setdefault("users", {})
+class TitleSelect(discord.ui.Select):
+    def __init__(self, member: discord.Member, user_data: dict):
+        self.member = member
+        titles = user_data.get("titles", [])
 
-    previous_season = ranking["season"]
+        options = []
+        for idx, raw_title in enumerate(titles[:25], start=1):
+            title = normalize_title_entry(raw_title)
+            label = f"{idx}. {title['name']}"
+            description = f"레벨 {title['level']} / 색상 {title['color']}"
+            options.append(
+                discord.SelectOption(
+                    label=label[:100],
+                    description=description[:100],
+                    value=str(idx)
+                )
+            )
 
-    if previous_season == "":
-        ranking["season"] = current_season
-        ranking["users"] = {}
-        save_data(data)
-        return
+        super().__init__(
+            placeholder="장착할 칭호를 선택하세요.",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
 
-    if previous_season == current_season:
-        return
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.member.id:
+            await interaction.response.send_message(
+                "이 메뉴는 명령어를 실행한 사용자만 조작할 수 있어요.",
+                ephemeral=True
+            )
+            return
 
-    season_users = ranking.get("users", {})
-    winner_user_id = None
-    winner_best_level = -1
-    winner_title_name = ""
+        cog = self.view.cog
+        title_index = int(self.values[0])
+        await cog.equip_title_logic(interaction, title_index)
 
-    for user_id, record in season_users.items():
-        if not isinstance(record, dict):
-            continue
 
-        best_level = record.get("best_level", 0)
-        title_name = str(record.get("title_name", "")).strip()
+class TitleListView(discord.ui.View):
+    def __init__(self, cog, member: discord.Member, user_data: dict):
+        super().__init__(timeout=300)
+        self.cog = cog
 
-        if not isinstance(best_level, int):
-            best_level = 0
-
-        if best_level > winner_best_level and title_name:
-            winner_best_level = best_level
-            winner_user_id = user_id
-            winner_title_name = title_name
-
-    if winner_user_id is not None and winner_title_name:
-        winner_member = guild.get_member(int(winner_user_id))
-        if winner_member is not None and not winner_member.bot:
-            role_name = f"🏆 {previous_season} {winner_title_name}"
-            role = discord.utils.get(guild.roles, name=role_name)
-
-            if role is None:
-                try:
-                    role = await guild.create_role(
-                        name=role_name,
-                        reason=f"{previous_season} 칭호 시즌 1위 보상 역할"
-                    )
-                except discord.Forbidden:
-                    role = None
-                except discord.HTTPException:
-                    role = None
-
-            if role is not None:
-                try:
-                    await winner_member.add_roles(role, reason=f"{previous_season} 칭호 시즌 1위 보상")
-                except discord.Forbidden:
-                    pass
-                except discord.HTTPException:
-                    pass
-
-    for _, user in data.get("users", {}).items():
-        if not isinstance(user, dict):
-            continue
-
-        titles = user.get("titles", [])
-        if not isinstance(titles, list):
-            user["titles"] = []
-            continue
-
-        filtered_titles = []
-        equipped_found = False
-
-        for title in titles:
-            if not isinstance(title, dict):
-                continue
-
-            level = title.get("level", 1)
-            if not isinstance(level, int) or level < 1:
-                level = 1
-                title["level"] = 1
-
-            if level >= 2:
-                continue
-
-            if title.get("equipped", False) and not equipped_found:
-                equipped_found = True
-                filtered_titles.append(title)
-            else:
-                title["equipped"] = False
-                filtered_titles.append(title)
-
-        if filtered_titles:
-            if not any(isinstance(t, dict) and t.get("equipped", False) for t in filtered_titles):
-                filtered_titles[0]["equipped"] = True
-        user["titles"] = filtered_titles
-
-    ranking["season"] = current_season
-    ranking["users"] = {}
-    save_data(data)
+        if user_data.get("titles"):
+            self.add_item(TitleSelect(member, user_data))
 
 
 class Titles(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def ensure_season(self, guild: discord.Guild):
-        data = load_data()
-        await process_monthly_title_reset(self.bot, guild, data)
+    def build_title_list_embed(self, member: discord.Member) -> discord.Embed:
+        economy_data = load_economy()
+        user_data = ensure_user(economy_data, str(member.id))
 
-    @app_commands.command(name="칭호목록", description="보유 중인 칭호 목록을 확인합니다.")
-    async def title_list(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title=f"🏷 {member.display_name}님의 칭호 목록",
+            description="보유 중인 칭호를 확인하고 장착할 수 있어요.",
+            color=discord.Color.purple()
+        )
+
+        embed.add_field(
+            name="📜 보유 칭호",
+            value=get_title_list_text(user_data)[:1024],
+            inline=False
+        )
+
+        equipped_title = str(user_data.get("equipped_title", "")).strip()
+        embed.add_field(
+            name="✨ 현재 장착 중",
+            value=equipped_title if equipped_title else "장착한 칭호가 없어요.",
+            inline=False
+        )
+
+        embed.set_footer(text=f"{member.display_name}님의 칭호 정보")
+        if member.display_avatar:
+            embed.set_thumbnail(url=member.display_avatar.url)
+
+        return embed
+
+    async def equip_title_logic(self, interaction: discord.Interaction, 번호: int):
         if interaction.guild is None:
-            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
-            return
-
-        if interaction.user.bot:
-            await interaction.response.send_message("봇 계정은 사용할 수 없어요.", ephemeral=True)
-            return
-
-        await self.ensure_season(interaction.guild)
-
-        data = load_data()
-        user = get_user_data(data, interaction.user.id)
-        save_data(data)
-
-        titles = user.get("titles", [])
-
-        if not titles:
             await interaction.response.send_message(
-                "보유 중인 칭호가 없어요.\n`/상점`에서 `칭호생성권`을 구매해보세요.",
+                "칭호 장착은 서버에서만 사용할 수 있어요.",
                 ephemeral=True
             )
             return
 
-        lines = []
-        for title in titles:
-            if not isinstance(title, dict):
-                continue
+        member = interaction.guild.get_member(interaction.user.id)
+        if member is None:
+            await interaction.response.send_message(
+                "서버 멤버 정보를 찾을 수 없어요.",
+                ephemeral=True
+            )
+            return
 
-            title_id = title.get("id", 0)
-            name = title.get("name", "이름없음")
-            color = title.get("color", "#FFFFFF")
-            level = title.get("level", 1)
-            if not isinstance(level, int) or level < 1:
-                level = 1
+        economy_data = load_economy()
+        user_data = ensure_user(economy_data, str(member.id))
 
-            equipped = " [장착중]" if title.get("equipped", False) else ""
-            lines.append(f"`{title_id}번` • `{name} +{level}` • `{color}`{equipped}")
+        titles_list, raw_title, title = find_title_by_index(user_data, 번호)
+        if title is None:
+            await interaction.response.send_message(
+                "해당 번호의 칭호가 없어요.",
+                ephemeral=True
+            )
+            return
 
-        embed = discord.Embed(
-            title="🏷 내 칭호 목록",
-            description="\n".join(lines),
-            color=discord.Color.gold()
+        title_name = title["name"]
+
+        if not user_data.get("base_nickname"):
+            current_display = member.display_name
+            current_equipped = str(user_data.get("equipped_title", "")).strip()
+
+            if current_equipped and current_display.startswith(f"[{current_equipped}] "):
+                current_display = current_display[len(f"[{current_equipped}] "):]
+
+            user_data["base_nickname"] = current_display
+
+        base_nickname = user_data.get("base_nickname", member.display_name).strip()
+        final_nickname = f"[{title_name}] {base_nickname}"
+
+        user_data["equipped_title"] = title_name
+
+        role_result = await ensure_title_role(
+            guild=interaction.guild,
+            member=member,
+            titles_list=titles_list,
+            raw_title_entry=raw_title,
+            normalized_title=title
         )
-        embed.set_footer(text="/칭호장착 [번호], /칭호강화 [번호], /칭호자랑 [번호]")
-        await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="칭호장착", description="보유 중인 칭호를 장착합니다.")
-    async def equip_title(self, interaction: discord.Interaction, 번호: int):
-        if interaction.guild is None:
-            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
-            return
+        save_economy(economy_data)
 
-        if interaction.user.bot:
-            await interaction.response.send_message("봇 계정은 사용할 수 없어요.", ephemeral=True)
-            return
-
-        if 번호 <= 0:
-            await interaction.response.send_message("올바른 칭호 번호를 입력해주세요.", ephemeral=True)
-            return
-
-        await self.ensure_season(interaction.guild)
-
-        data = load_data()
-        user = get_user_data(data, interaction.user.id)
-        titles = user.get("titles", [])
-
-        target = find_title_by_id(titles, 번호)
-        if target is None:
-            await interaction.response.send_message("해당 번호의 칭호를 찾을 수 없어요.", ephemeral=True)
-            return
-
-        for title in titles:
-            if isinstance(title, dict):
-                title["equipped"] = False
-
-        target["equipped"] = True
-        save_data(data)
+        nickname_changed = True
+        try:
+            await member.edit(nick=final_nickname)
+        except discord.Forbidden:
+            nickname_changed = False
+        except discord.HTTPException:
+            nickname_changed = False
 
         embed = discord.Embed(
             title="✅ 칭호 장착 완료",
-            description=(
-                f"장착한 칭호: `{target.get('name', '이름없음')} +{target.get('level', 1)}`\n"
-                f"색상: `{target.get('color', '#FFFFFF')}`\n\n"
-                f"이제 `/내정보`에서 표시돼요."
-            ),
-            color=parse_embed_color(target.get("color", "#FFFFFF"))
+            description=f"**{title_name}** 칭호를 장착했어요.",
+            color=discord.Color.purple()
         )
-        await interaction.response.send_message(embed=embed)
+        embed.add_field(
+            name="🏷 장착 칭호",
+            value=title_name,
+            inline=False
+        )
+        embed.add_field(
+            name="👤 적용 닉네임",
+            value=final_nickname if nickname_changed else "닉네임 변경 권한이 없어 닉네임은 바꾸지 못했어요.",
+            inline=False
+        )
 
-    @app_commands.command(name="칭호강화", description="보유 중인 칭호를 강화합니다.")
-    async def upgrade_title(self, interaction: discord.Interaction, 번호: int):
+        role = role_result.get("role")
+        embed.add_field(
+            name="🎭 역할 상태",
+            value=role.name if role else "연동된 역할이 없거나 복구하지 못했어요.",
+            inline=False
+        )
+        embed.add_field(
+            name="🛠 역할 동기화",
+            value=role_result.get("status_text", "처리 결과를 확인할 수 없어요."),
+            inline=False
+        )
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="칭호목록", description="보유 중인 칭호 목록을 확인합니다.")
+    async def title_list_command(self, interaction: discord.Interaction):
         if interaction.guild is None:
-            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
-            return
-
-        if interaction.user.bot:
-            await interaction.response.send_message("봇 계정은 사용할 수 없어요.", ephemeral=True)
-            return
-
-        if 번호 <= 0:
-            await interaction.response.send_message("올바른 칭호 번호를 입력해주세요.", ephemeral=True)
-            return
-
-        await self.ensure_season(interaction.guild)
-
-        data = load_data()
-        user = get_user_data(data, interaction.user.id)
-        titles = user.get("titles", [])
-
-        target = find_title_by_id(titles, 번호)
-        if target is None:
-            await interaction.response.send_message("해당 번호의 칭호를 찾을 수 없어요.", ephemeral=True)
-            return
-
-        current_level = target.get("level", 1)
-        if not isinstance(current_level, int) or current_level < 1:
-            current_level = 1
-            target["level"] = 1
-
-        if current_level >= MAX_TITLE_LEVEL:
             await interaction.response.send_message(
-                f"이 칭호는 이미 최대 강화 단계(`+{MAX_TITLE_LEVEL}`)예요.",
+                "칭호 목록은 서버에서만 사용할 수 있어요.",
                 ephemeral=True
             )
             return
 
-        cost = get_upgrade_cost(current_level)
+        economy_data = load_economy()
+        user_data = ensure_user(economy_data, str(interaction.user.id))
 
-        if user["money"] < cost:
+        embed = self.build_title_list_embed(interaction.user)
+        view = TitleListView(self, interaction.user, user_data)
+
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @app_commands.command(name="칭호장착", description="보유한 칭호를 장착합니다.")
+    @app_commands.describe(번호="장착할 칭호 번호")
+    async def title_equip_command(self, interaction: discord.Interaction, 번호: int):
+        await self.equip_title_logic(interaction, 번호)
+
+    @app_commands.command(name="칭호해제", description="현재 장착 중인 칭호를 해제합니다.")
+    async def title_unequip_command(self, interaction: discord.Interaction):
+        if interaction.guild is None:
             await interaction.response.send_message(
-                f"재화가 부족해요.\n필요 재화: `{cost:,} 코인`\n현재 재화: `{user['money']:,} 코인`",
+                "칭호 해제는 서버에서만 사용할 수 있어요.",
                 ephemeral=True
             )
             return
 
-        user["money"] -= cost
-        if user["money"] < 0:
-            user["money"] = 0
-
-        target["level"] = current_level + 1
-
-        current_season = get_current_season()
-        data["title_ranking"]["season"] = current_season
-        update_title_ranking_record(
-            data=data,
-            user_id=interaction.user.id,
-            title_name=str(target.get("name", "이름없음")),
-            level=target["level"]
-        )
-
-        save_data(data)
-
-        embed = discord.Embed(
-            title="✨ 칭호 강화 성공",
-            description=(
-                f"강화한 칭호: `{target.get('name', '이름없음')}`\n"
-                f"현재 단계: `+{target['level']}`\n"
-                f"사용 재화: `{cost:,} 코인`\n"
-                f"남은 재화: `{user['money']:,} 코인`\n"
-                f"시즌 기록 반영: `{current_season}`"
-            ),
-            color=parse_embed_color(target.get("color", "#FFFFFF"))
-        )
-        await interaction.response.send_message(embed=embed)
-
-    @app_commands.command(name="칭호자랑", description="보유 중인 칭호를 자랑합니다.")
-    async def show_title(self, interaction: discord.Interaction, 번호: int):
-        if interaction.guild is None:
-            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
-            return
-
-        if interaction.user.bot:
-            await interaction.response.send_message("봇 계정은 사용할 수 없어요.", ephemeral=True)
-            return
-
-        if 번호 <= 0:
-            await interaction.response.send_message("올바른 칭호 번호를 입력해주세요.", ephemeral=True)
-            return
-
-        await self.ensure_season(interaction.guild)
-
-        data = load_data()
-        user = get_user_data(data, interaction.user.id)
-        titles = user.get("titles", [])
-
-        target = find_title_by_id(titles, 번호)
-        if target is None:
-            await interaction.response.send_message("해당 번호의 칭호를 찾을 수 없어요.", ephemeral=True)
-            return
-
-        name = target.get("name", "이름없음")
-        color = target.get("color", "#FFFFFF")
-        level = target.get("level", 1)
-        if not isinstance(level, int) or level < 1:
-            level = 1
-
-        equipped_text = "장착 중" if target.get("equipped", False) else "미장착"
-
-        embed = discord.Embed(
-            title="🏷 칭호 자랑",
-            description=(
-                f"소유자: {interaction.user.mention}\n"
-                f"칭호 이름: `{name}`\n"
-                f"강화 단계: `+{level}`\n"
-                f"색상: `{color}`\n"
-                f"상태: `{equipped_text}`"
-            ),
-            color=parse_embed_color(color)
-        )
-        embed.set_footer(text=f"칭호 번호: {번호}")
-        await interaction.response.send_message(embed=embed)
-
-    @app_commands.command(name="칭호강화랭킹", description="이번 달 칭호 강화 랭킹을 확인합니다.")
-    async def title_ranking(self, interaction: discord.Interaction):
-        if interaction.guild is None:
-            await interaction.response.send_message("이 명령어는 서버에서만 사용할 수 있어요.", ephemeral=True)
-            return
-
-        if interaction.user.bot:
-            await interaction.response.send_message("봇 계정은 사용할 수 없어요.", ephemeral=True)
-            return
-
-        await self.ensure_season(interaction.guild)
-
-        data = load_data()
-        ranking = data.get("title_ranking", {})
-        season = ranking.get("season", get_current_season())
-        ranking_users = ranking.get("users", {})
-
-        entries = []
-        for user_id, record in ranking_users.items():
-            if not isinstance(record, dict):
-                continue
-
-            try:
-                member = interaction.guild.get_member(int(user_id))
-            except ValueError:
-                continue
-
-            if member is None or member.bot:
-                continue
-
-            best_level = record.get("best_level", 0)
-            title_name = str(record.get("title_name", "")).strip()
-
-            if not isinstance(best_level, int):
-                best_level = 0
-
-            if best_level <= 0 or not title_name:
-                continue
-
-            entries.append((member, best_level, title_name))
-
-        entries.sort(key=lambda x: x[1], reverse=True)
-        top_entries = entries[:RANKING_TOP_LIMIT]
-
-        if not top_entries:
+        member = interaction.guild.get_member(interaction.user.id)
+        if member is None:
             await interaction.response.send_message(
-                "이번 달에는 아직 칭호 강화 기록이 없어요.",
+                "서버 멤버 정보를 찾을 수 없어요.",
                 ephemeral=True
             )
             return
 
-        medals = ["🥇", "🥈", "🥉"]
-        lines = []
+        economy_data = load_economy()
+        user_data = ensure_user(economy_data, str(member.id))
 
-        for idx, (member, best_level, title_name) in enumerate(top_entries, start=1):
-            prefix = medals[idx - 1] if idx <= 3 else f"{idx}위"
-            lines.append(f"{prefix} {member.display_name} - `{title_name} +{best_level}`")
+        equipped_title = str(user_data.get("equipped_title", "")).strip()
+        if not equipped_title:
+            await interaction.response.send_message(
+                "현재 장착 중인 칭호가 없어요.",
+                ephemeral=True
+            )
+            return
+
+        base_nickname = user_data.get("base_nickname", "").strip() or member.display_name
+
+        user_data["equipped_title"] = ""
+        save_economy(economy_data)
+
+        nickname_changed = True
+        try:
+            await member.edit(nick=base_nickname)
+        except discord.Forbidden:
+            nickname_changed = False
+        except discord.HTTPException:
+            nickname_changed = False
+
+        await remove_all_title_roles(interaction.guild, member, user_data)
 
         embed = discord.Embed(
-            title="🏆 월간 칭호 강화 랭킹",
-            description="\n".join(lines),
-            color=discord.Color.gold()
+            title="🗑 칭호 해제 완료",
+            description=f"**{equipped_title}** 칭호를 해제했어요.",
+            color=discord.Color.orange()
         )
-        embed.set_footer(text=f"현재 시즌: {season} | 월이 바뀌면 랭킹이 초기화돼요.")
-        await interaction.response.send_message(embed=embed)
+        embed.add_field(
+            name="👤 현재 닉네임",
+            value=base_nickname if nickname_changed else "닉네임 변경 권한이 없어 닉네임은 바꾸지 못했어요.",
+            inline=False
+        )
+        embed.add_field(
+            name="🎭 역할 상태",
+            value="연동된 칭호 역할도 함께 해제했어요.",
+            inline=False
+        )
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot):
